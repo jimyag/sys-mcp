@@ -1,0 +1,23 @@
+[Unit]
+Description=sys-mcp-agent — MCP physical machine resource agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/sys-mcp-agent --config /etc/sys-mcp/agent.yaml
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sys-mcp-agent
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadOnlyPaths=/
+
+[Install]
+WantedBy=multi-user.target

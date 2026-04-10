@@ -1,0 +1,30 @@
+# sys-mcp-agent configuration example
+# Place at /etc/sys-mcp/agent.yaml or ./sys-mcp-agent.yaml
+
+center:
+  # address is the gRPC address of sys-mcp-center (or sys-mcp-proxy).
+  address: "center.example.com:9090"
+  # token is the bearer token this agent uses to authenticate.
+  token: "your-agent-token-here"
+  # insecure_tls skips TLS verification (development only; do not use in production).
+  insecure_tls: false
+  # tls holds optional mTLS material.
+  tls:
+    cert_file: ""
+    key_file:  ""
+    ca_file:   ""
+
+tools:
+  # tool_timeout_sec is the max seconds allowed for a single tool invocation.
+  tool_timeout_sec: 25
+  # max_file_size_mb limits ReadFile responses.
+  max_file_size_mb: 100
+  # blocked_paths are filesystem paths the agent refuses to access.
+  blocked_paths:
+    - /proc
+    - /sys
+    - /dev
+
+logging:
+  level: "info"   # debug | info | warn | error
+  format: "json"  # json | text

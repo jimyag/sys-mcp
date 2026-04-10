@@ -1,0 +1,30 @@
+# sys-mcp-proxy configuration example
+# Place at /etc/sys-mcp/proxy.yaml or ./sys-mcp-proxy.yaml
+
+listen:
+  # grpc_address is the address for the downstream gRPC server that agents connect to.
+  grpc_address: ":9091"
+  tls:
+    cert_file: ""
+    key_file:  ""
+    ca_file:   ""
+
+upstream:
+  # address is the gRPC address of the upstream node (center or parent proxy).
+  address: "center.example.com:9090"
+  # token is the bearer token this proxy uses to authenticate with upstream.
+  token: "your-proxy-token-here"
+  insecure_tls: false
+  tls:
+    cert_file: ""
+    key_file:  ""
+    ca_file:   ""
+
+auth:
+  # agent_tokens are bearer tokens accepted from downstream agents/proxies.
+  agent_tokens:
+    - "your-agent-token-here"
+
+logging:
+  level: "info"   # debug | info | warn | error
+  format: "json"  # json | text

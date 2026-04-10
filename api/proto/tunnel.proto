@@ -60,10 +60,12 @@ message HeartbeatAck {
 }
 
 // ToolRequest is sent by center to agent to invoke a tool.
+// When routed via a proxy, target_host identifies the final destination.
 message ToolRequest {
   string request_id = 1; // unique, used to correlate response
   string tool_name  = 2;
   string args_json  = 3; // JSON-encoded tool arguments
+  string target_host = 4; // hostname of the final target agent (set by center)
 }
 
 // ToolResponse carries the result from agent back to center.
