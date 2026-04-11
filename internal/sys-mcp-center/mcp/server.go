@@ -171,14 +171,27 @@ func registerAgentProxyTool(srv *sdkmcp.Server, reg *registry.Registry, rtr *rou
 		if rec == nil {
 			// 本实例找不到该 agent，尝试跨实例路由（HA 模式）。
 			if fwd != nil {
+				if log != nil {
+					_ = log.InsertToolCallLog(ctx, requestID, instanceID, targetHost, toolName, string(argsRaw))
+				}
 				result, forwarded, err := fwd.ForwardIfNeeded(ctx, requestID, targetHost, toolName, string(argsRaw))
 				if forwarded {
+					if log != nil {
+						errMsg := ""
+						if err != nil {
+							errMsg = err.Error()
+						}
+						_ = log.CompleteToolCallLog(ctx, requestID, result, errMsg)
+					}
 					if err != nil {
 						return errorResult(err.Error()), nil
 					}
 					return &sdkmcp.CallToolResult{
 						Content: []sdkmcp.Content{&sdkmcp.TextContent{Text: result}},
 					}, nil
+				}
+				if log != nil {
+					_ = log.CompleteToolCallLog(ctx, requestID, "", "agent not found")
 				}
 			}
 			return errorResult(fmt.Sprintf("agent %q not found", targetHost)), nil
@@ -358,11 +371,20 @@ func registerMultiTool(srv *sdkmcp.Server, reg *registry.Registry, rtr *router.R
 					var entry interface{}
 					if fwd != nil {
 						reqID := requestIDBase + "_" + host
+						if log != nil {
+							_ = log.InsertToolCallLog(ctx, reqID, instanceID, host, singleTool, argsJSON)
+						}
 						result, forwarded, err := fwd.ForwardIfNeeded(ctx, reqID, host, singleTool, argsJSON)
 						switch {
 						case err != nil:
+							if log != nil {
+								_ = log.CompleteToolCallLog(ctx, reqID, "", err.Error())
+							}
 							entry = map[string]string{"error": err.Error()}
 						case forwarded:
+							if log != nil {
+								_ = log.CompleteToolCallLog(ctx, reqID, result, "")
+							}
 							var parsed interface{}
 							if jsonErr := json.Unmarshal([]byte(result), &parsed); jsonErr != nil {
 								entry = result
@@ -370,6 +392,9 @@ func registerMultiTool(srv *sdkmcp.Server, reg *registry.Registry, rtr *router.R
 								entry = parsed
 							}
 						default:
+							if log != nil {
+								_ = log.CompleteToolCallLog(ctx, reqID, "", "agent not found")
+							}
 							entry = map[string]string{"error": "agent not found"}
 						}
 					} else {

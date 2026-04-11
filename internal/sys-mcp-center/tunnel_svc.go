@@ -91,30 +91,33 @@ func (s *TunnelServiceServer) Connect(srv tunnel.TunnelService_ConnectServer) er
 		Status:        registry.StatusOnline,
 		RouteStream:   ts,
 	}
+
+	if s.persister != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := s.persister.UpsertAgent(ctx, &store.AgentRow{
+			Hostname:      req.Hostname,
+			IP:            req.Ip,
+			OS:            req.Os,
+			AgentVersion:  req.AgentVersion,
+			NodeType:      nodeType,
+			ProxyPath:     req.ProxyPath,
+			CenterID:      s.instanceID,
+			Status:        "online",
+			RegisteredAt:  rec.RegisteredAt,
+			LastHeartbeat: rec.LastHeartbeat,
+		})
+		cancel()
+		if err != nil {
+			_ = srv.Send(&tunnel.TunnelMessage{
+				Payload: &tunnel.TunnelMessage_RegisterAck{
+					RegisterAck: &tunnel.RegisterAck{Success: false, Message: "persist registration failed"},
+				},
+			})
+			return status.Errorf(codes.Unavailable, "persist registration: %v", err)
+		}
+	}
 	s.reg.Register(rec)
 	s.logger.Info("agent registered", "hostname", req.Hostname, "type", nodeType, "ip", req.Ip)
-
-	// Persist to PostgreSQL asynchronously (non-blocking; DB unavailability must not block gRPC).
-	if s.persister != nil {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := s.persister.UpsertAgent(ctx, &store.AgentRow{
-				Hostname:      req.Hostname,
-				IP:            req.Ip,
-				OS:            req.Os,
-				AgentVersion:  req.AgentVersion,
-				NodeType:      nodeType,
-				ProxyPath:     req.ProxyPath,
-				CenterID:      s.instanceID,
-				Status:        "online",
-				RegisteredAt:  rec.RegisteredAt,
-				LastHeartbeat: rec.LastHeartbeat,
-			}); err != nil {
-				s.logger.Warn("UpsertAgent failed", "hostname", req.Hostname, "error", err)
-			}
-		}()
-	}
 
 	// Send ack.
 	if err := ts.Send(&tunnel.TunnelMessage{
@@ -216,24 +219,24 @@ func (s *TunnelServiceServer) Connect(srv tunnel.TunnelService_ConnectServer) er
 					"via_proxy", req.Hostname,
 				)
 				if s.persister != nil {
-					go func(r *registry.AgentRecord) {
-						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-						defer cancel()
-						if err := s.persister.UpsertAgent(ctx, &store.AgentRow{
-							Hostname:      r.Hostname,
-							IP:            r.IP,
-							OS:            r.OS,
-							AgentVersion:  r.AgentVersion,
-							NodeType:      r.NodeType,
-							ProxyPath:     r.ProxyPath,
-							CenterID:      s.instanceID,
-							Status:        "online",
-							RegisteredAt:  r.RegisteredAt,
-							LastHeartbeat: r.LastHeartbeat,
-						}); err != nil {
-							s.logger.Warn("UpsertAgent (proxy) failed", "hostname", r.Hostname, "error", err)
-						}
-					}(downstreamRec)
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					err := s.persister.UpsertAgent(ctx, &store.AgentRow{
+						Hostname:      downstreamRec.Hostname,
+						IP:            downstreamRec.IP,
+						OS:            downstreamRec.OS,
+						AgentVersion:  downstreamRec.AgentVersion,
+						NodeType:      downstreamRec.NodeType,
+						ProxyPath:     downstreamRec.ProxyPath,
+						CenterID:      s.instanceID,
+						Status:        "online",
+						RegisteredAt:  downstreamRec.RegisteredAt,
+						LastHeartbeat: downstreamRec.LastHeartbeat,
+					})
+					cancel()
+					if err != nil {
+						s.reg.Unregister(hostname)
+						s.logger.Warn("UpsertAgent (proxy) failed", "hostname", downstreamRec.Hostname, "error", err)
+					}
 				}
 			}
 		}

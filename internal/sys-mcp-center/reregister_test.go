@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	center "github.com/jimyag/sys-mcp/internal/sys-mcp-center"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/registry"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/router"
+	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/store"
 )
 
 const bufSize = 1 << 20 // 1 MiB
@@ -208,5 +210,110 @@ func TestTunnelSvc_InvalidToken(t *testing.T) {
 	all := reg.All()
 	if len(all) != 0 {
 		t.Fatalf("expected empty registry after invalid token, got %d records", len(all))
+	}
+}
+
+type blockingPersister struct {
+	upsertStarted atomic.Bool
+	release       chan struct{}
+}
+
+func (p *blockingPersister) UpsertAgent(ctx context.Context, r *store.AgentRow) error {
+	p.upsertStarted.Store(true)
+	select {
+	case <-p.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (p *blockingPersister) UpdateAgentHeartbeat(ctx context.Context, hostname string) error {
+	return nil
+}
+func (p *blockingPersister) SetAgentOffline(ctx context.Context, hostname string) error { return nil }
+
+func TestTunnelSvc_RegisterWaitsForInitialPersist(t *testing.T) {
+	reg := registry.New()
+	rtr := router.New(5)
+	logger := slog.Default()
+	p := &blockingPersister{release: make(chan struct{})}
+	svc := center.NewTunnelServiceServer(reg, rtr, []string{"tok"}, logger, p, "center-01")
+
+	lis := bufconn.Listen(bufSize)
+	srv := grpc.NewServer()
+	tunnel.RegisterTunnelServiceServer(srv, svc)
+	go func() { _ = srv.Serve(lis) }()
+	defer func() {
+		srv.Stop()
+		lis.Close()
+	}()
+
+	dialer := func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) }
+	conn, err := grpc.NewClient(
+		"passthrough://bufnet",
+		grpc.WithContextDialer(dialer),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("grpc.NewClient: %v", err)
+	}
+	defer conn.Close()
+
+	client := tunnel.NewTunnelServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	stream, err := client.Connect(ctx)
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+
+	if err := stream.Send(&tunnel.TunnelMessage{
+		Payload: &tunnel.TunnelMessage_RegisterRequest{
+			RegisterRequest: &tunnel.RegisterRequest{
+				Hostname: "test-agent",
+				Token:    "tok",
+				NodeType: tunnel.NodeType_NODE_TYPE_AGENT,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("Send RegisterRequest: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	if !p.upsertStarted.Load() {
+		t.Fatal("expected UpsertAgent to start before ack is sent")
+	}
+
+	ackCh := make(chan *tunnel.RegisterAck, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		msg, err := stream.Recv()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		ackCh <- msg.GetRegisterAck()
+	}()
+
+	select {
+	case <-ackCh:
+		t.Fatal("did not expect register ack before initial persist completed")
+	case err := <-errCh:
+		t.Fatalf("unexpected recv error before persist release: %v", err)
+	case <-time.After(150 * time.Millisecond):
+	}
+
+	close(p.release)
+
+	select {
+	case ack := <-ackCh:
+		if ack == nil || !ack.Success {
+			t.Fatalf("expected successful ack after persist release, got %+v", ack)
+		}
+	case err := <-errCh:
+		t.Fatalf("unexpected recv error after persist release: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for ack after persist release")
 	}
 }

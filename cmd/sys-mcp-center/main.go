@@ -102,7 +102,7 @@ func main() {
 			}
 		}
 
-		internalAddr := cfg.Listen.HTTPAddress // 内部转发使用同一 HTTP 端口
+		internalAddr := cfg.HA.InternalAddress
 		registrar := ha.NewCenterRegistrar(st, instanceID, internalAddr, logger)
 		if regErr := registrar.Start(ctx); regErr != nil {
 			fmt.Fprintf(os.Stderr, "error: register center instance: %v\n", regErr)
@@ -152,7 +152,7 @@ func main() {
 
 	// HTTP 路由：/internal/forward 用于跨 center 实例转发，其余走 MCP handler
 	httpMux := http.NewServeMux()
-	httpMux.HandleFunc("/internal/forward", makeInternalForwardHandler(reg, rtr, cfg.HA.InternalSecret, logger))
+	httpMux.HandleFunc("/internal/forward", makeInternalForwardHandler(reg, rtr, cfg.HA.InternalSecret, logger, callLogger, instanceID))
 	httpMux.Handle("/", mcpHandler)
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -239,7 +239,7 @@ func parseLogLevel(level string) slog.Level {
 // makeInternalForwardHandler 创建内部工具转发 HTTP 处理器。
 // 其他 center 实例通过 POST /internal/forward 将工具请求转发到本实例。
 // secret 若非空，则要求请求携带 X-Internal-Auth: <secret> 头。
-func makeInternalForwardHandler(reg *registry.Registry, rtr *router.Router, secret string, logger *slog.Logger) http.HandlerFunc {
+func makeInternalForwardHandler(reg *registry.Registry, rtr *router.Router, secret string, logger *slog.Logger, callLogger centermcp.CallLogger, instanceID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -265,8 +265,18 @@ func makeInternalForwardHandler(reg *registry.Registry, rtr *router.Router, secr
 			return
 		}
 
+		if callLogger != nil {
+			_ = callLogger.InsertToolCallLog(r.Context(), req.RequestID, instanceID, req.TargetHost, req.ToolName, req.ArgsJSON)
+		}
 		result, err := rtr.Send(r.Context(), rec, req.RequestID, req.ToolName, req.ArgsJSON)
 		w.Header().Set("Content-Type", "application/json")
+		if callLogger != nil {
+			errMsg := ""
+			if err != nil {
+				errMsg = err.Error()
+			}
+			_ = callLogger.CompleteToolCallLog(r.Context(), req.RequestID, result, errMsg)
+		}
 		if err != nil {
 			json.NewEncoder(w).Encode(ha.ForwardResponse{Error: err.Error()})
 			return

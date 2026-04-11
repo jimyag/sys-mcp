@@ -86,7 +86,7 @@ func ReadFile(ctx context.Context, guard *PathGuard, maxFileSizeMB int64, argsJS
 	}
 
 	if p.Tail > 0 {
-		return readTail(p.Path, f, p.Tail, sizeBytes)
+		return readTail(ctx, p.Path, f, p.Tail, sizeBytes)
 	}
 
 	// Read all lines.
@@ -127,12 +127,17 @@ func ReadFile(ctx context.Context, guard *PathGuard, maxFileSizeMB int64, argsJS
 }
 
 // readTail returns the last n lines using a ring buffer.
-func readTail(path string, f *os.File, n int, sizeBytes int64) (string, error) {
+func readTail(ctx context.Context, path string, f *os.File, n int, sizeBytes int64) (string, error) {
 	ring := make([]string, n)
 	idx := 0
 	total := 0
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
 		ring[idx%n] = scanner.Text()
 		idx++
 		total++

@@ -73,6 +73,10 @@ type Metrics struct {
 
 // HA 配置高可用跨实例转发（可选）。
 type HA struct {
+	// InternalAddress 是写入 center_instances.internal_address 的可路由地址，
+	// 供其他 center 实例调用本实例的 /internal/forward 使用。
+	// 必须是远端可访问的 host:port，不能使用仅本地有效的 ":8080" 形式。
+	InternalAddress string `yaml:"internal_address"`
 	// InternalSecret 是实例间 /internal/forward 调用的共享密钥。
 	// 若为空则不启用 internal endpoint 鉴权（仅适用于受信任内网）。
 	InternalSecret string `yaml:"internal_secret"`
@@ -127,6 +131,9 @@ func applyDefaults(cfg *CenterConfig) {
 func validate(cfg *CenterConfig) error {
 	if len(cfg.Auth.AgentTokens) == 0 {
 		return fmt.Errorf("auth.agent_tokens must have at least one token")
+	}
+	if cfg.Database.Enable && cfg.HA.InternalAddress == "" {
+		return fmt.Errorf("ha.internal_address must be set when database.enable=true")
 	}
 	return nil
 }

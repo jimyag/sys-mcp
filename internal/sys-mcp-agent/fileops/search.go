@@ -110,6 +110,11 @@ func SearchFileContent(ctx context.Context, guard *PathGuard, argsJSON string) (
 	addedLines := make(map[int]bool)
 
 	for i, line := range allLines {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
 		matched := matchLine(line)
 		if p.InvertMatch {
 			matched = !matched
@@ -127,6 +132,11 @@ func SearchFileContent(ctx context.Context, guard *PathGuard, argsJSON string) (
 
 		// Context before.
 		for b := max2(0, i-p.ContextBefore); b < i; b++ {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			default:
+			}
 			if !addedLines[b] {
 				matches = append(matches, makeMatchLine(p, b, allLines[b], "before"))
 				addedLines[b] = true
@@ -139,6 +149,11 @@ func SearchFileContent(ctx context.Context, guard *PathGuard, argsJSON string) (
 		}
 		// Context after.
 		for a := i + 1; a <= min2(len(allLines)-1, i+p.ContextAfter); a++ {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			default:
+			}
 			if !addedLines[a] {
 				matches = append(matches, makeMatchLine(p, a, allLines[a], "after"))
 				addedLines[a] = true
