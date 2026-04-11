@@ -96,3 +96,43 @@ func TestSendMulti_AllSuccess(t *testing.T) {
 		}
 	}
 }
+
+// TestSend_TimeoutSendsCancelRequest 验证超时时 router 向 agent stream 发送 CancelRequest。
+func TestSend_TimeoutSendsCancelRequest(t *testing.T) {
+	rtr := router.New(1) // 1 秒超时
+
+	fs := &fakeStream{}
+	rec := &registry.AgentRecord{
+		Hostname:    "slow-host",
+		Status:      registry.StatusOnline,
+		RouteStream: fs,
+	}
+
+	// 不回复任何消息，让请求超时
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := rtr.Send(ctx, rec, "req-cancel-test", "get_cpu_info", `{"target_host":"slow-host"}`)
+	if err == nil {
+		t.Fatal("期望超时错误，但没有报错")
+	}
+
+	// 等待一小段时间让 CancelRequest 被发送
+	time.Sleep(50 * time.Millisecond)
+
+	fs.mu.Lock()
+	msgs := make([]*tunnel.TunnelMessage, len(fs.received))
+	copy(msgs, fs.received)
+	fs.mu.Unlock()
+
+	// 应该收到两条消息：ToolRequest（第一条）和 CancelRequest（超时后）
+	var hasCancelRequest bool
+	for _, m := range msgs {
+		if c := m.GetCancelRequest(); c != nil && c.RequestId == "req-cancel-test" {
+			hasCancelRequest = true
+		}
+	}
+	if !hasCancelRequest {
+		t.Errorf("超时后应发送 CancelRequest，实际收到 %d 条消息: %v", len(msgs), msgs)
+	}
+}

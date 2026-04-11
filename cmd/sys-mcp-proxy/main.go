@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -15,10 +16,12 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	apitunnel "github.com/jimyag/sys-mcp/api/tunnel"
 	pkgstream "github.com/jimyag/sys-mcp/internal/pkg/stream"
+	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
 	proxycfg "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy/config"
 	proxyreg "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy/registry"
 	proxytunnel "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy/tunnel"
@@ -84,9 +87,17 @@ func main() {
 		logger,
 	)
 
+	// Build upstream TLS credentials from config.
+	upstreamCreds, err := buildUpstreamCreds(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: upstream TLS config: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Build dialer config: register this node as a PROXY on the upstream.
 	dialerCfg := pkgstream.DialerConfig{
-		Endpoint: cfg.Upstream.Address,
+		Endpoint:       cfg.Upstream.Address,
+		TLSCredentials: upstreamCreds,
 		RegisterMsg: &apitunnel.TunnelMessage{
 			Payload: &apitunnel.TunnelMessage_RegisterRequest{
 				RegisterRequest: &apitunnel.RegisterRequest{
@@ -101,10 +112,12 @@ func main() {
 		HeartbeatInterval: 30 * time.Second,
 		ReconnectMaxDelay: 30 * time.Second,
 		OnMessage: func(msg *apitunnel.TunnelMessage) {
-			// Messages from upstream: route ToolRequests to downstream agents.
+			// Messages from upstream: route ToolRequests and CancelRequests to downstream agents.
 			switch msg.Payload.(type) {
 			case *apitunnel.TunnelMessage_ToolRequest:
 				downstreamSvc.DeliverToolRequest(msg)
+			case *apitunnel.TunnelMessage_CancelRequest:
+				downstreamSvc.DeliverCancelRequest(msg)
 			default:
 				logger.Warn("proxy received unexpected upstream message", "type", fmt.Sprintf("%T", msg.Payload))
 			}
@@ -132,7 +145,11 @@ func main() {
 
 	// Run downstream gRPC server.
 	g.Go(func() error {
-		grpcServer := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
+		serverCreds, err := buildDownstreamCreds(cfg)
+		if err != nil {
+			return fmt.Errorf("downstream TLS config: %w", err)
+		}
+		grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
 		apitunnel.RegisterTunnelServiceServer(grpcServer, downstreamSvc)
 
 		lis, err := net.Listen("tcp", cfg.Listen.GRPCAddress)
@@ -164,6 +181,36 @@ func (a *dialerAdapter) Send(msg *apitunnel.TunnelMessage) error {
 		return fmt.Errorf("proxy: upstream dialer not ready")
 	}
 	return a.d.Send(msg)
+}
+
+// buildUpstreamCreds returns gRPC transport credentials for the upstream connection.
+func buildUpstreamCreds(cfg *proxycfg.ProxyConfig) (credentials.TransportCredentials, error) {
+	t := cfg.Upstream.TLS
+	if cfg.Upstream.InsecureTLS {
+		return credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}), nil //nolint:gosec
+	}
+	if t.CertFile != "" || t.CAFile != "" {
+		tlsCfg, err := tlsconf.LoadClientTLS(t.CertFile, t.KeyFile, t.CAFile)
+		if err != nil {
+			return nil, err
+		}
+		return credentials.NewTLS(tlsCfg), nil
+	}
+	// No TLS config: use insecure (plain text) — default for local/dev environments.
+	return nil, nil // DialerConfig.TLSCredentials == nil → insecure
+}
+
+// buildDownstreamCreds returns gRPC server credentials for the downstream listener.
+func buildDownstreamCreds(cfg *proxycfg.ProxyConfig) (credentials.TransportCredentials, error) {
+	t := cfg.Listen.TLS
+	if t.CertFile != "" {
+		tlsCfg, err := tlsconf.LoadServerTLS(t.CertFile, t.KeyFile, t.CAFile)
+		if err != nil {
+			return nil, err
+		}
+		return credentials.NewTLS(tlsCfg), nil
+	}
+	return insecure.NewCredentials(), nil
 }
 
 func parseLogLevel(level string) slog.Level {

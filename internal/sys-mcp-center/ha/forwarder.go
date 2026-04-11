@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+// internalHTTPClient is a dedicated HTTP client for inter-instance calls.
+// Avoids sharing http.DefaultClient and sets sane limits.
+var internalHTTPClient = &http.Client{
+	Timeout: 35 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConnsPerHost: 4,
+		IdleConnTimeout:     60 * time.Second,
+	},
+}
+
+// internalAuthHeader is the HTTP header used to authenticate /internal/forward calls.
+const internalAuthHeader = "X-Internal-Auth"
+
 // ForwardRequest 是跨 center 实例转发工具请求的 HTTP 请求体。
 type ForwardRequest struct {
 	RequestID  string `json:"request_id"`
@@ -25,7 +38,8 @@ type ForwardResponse struct {
 }
 
 // ForwardToCenter 将工具请求 HTTP POST 到指定 center 实例的 /internal/forward 端点。
-func ForwardToCenter(ctx context.Context, internalAddress string, req ForwardRequest) (string, error) {
+// secret 是共享密钥，与接收方 config.HA.InternalSecret 一致。
+func ForwardToCenter(ctx context.Context, internalAddress, secret string, req ForwardRequest) (string, error) {
 	body, _ := json.Marshal(req)
 
 	httpCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -39,12 +53,19 @@ func ForwardToCenter(ctx context.Context, internalAddress string, req ForwardReq
 		return "", fmt.Errorf("ha: build forward request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	if secret != "" {
+		httpReq.Header.Set(internalAuthHeader, secret)
+	}
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := internalHTTPClient.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("ha: forward request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", fmt.Errorf("ha: /internal/forward rejected (401 Unauthorized) — check ha.internal_secret config")
+	}
 
 	data, _ := io.ReadAll(resp.Body)
 	var fwdResp ForwardResponse

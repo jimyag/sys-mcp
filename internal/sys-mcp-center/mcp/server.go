@@ -19,15 +19,28 @@ import (
 // emptySchema is used for tools that take no parameters beyond target_host.
 var emptySchema = &jsonschema.Schema{Type: "object"}
 
+// RemoteForwarder 在本地 registry 找不到 agent 时，尝试跨实例转发。
+// ha.RouterBridge 实现此接口。
+type RemoteForwarder interface {
+	ForwardIfNeeded(ctx context.Context, requestID, targetHost, toolName, argsJSON string) (string, bool, error)
+}
+
+// CallLogger 记录工具调用日志（可选）。store.Store 实现此接口。
+type CallLogger interface {
+	InsertToolCallLog(ctx context.Context, requestID, centerID, targetHost, toolName, argsJSON string) error
+	CompleteToolCallLog(ctx context.Context, requestID, resultJSON, errorMsg string) error
+}
+
 // NewMCPHandler builds the MCP HTTP handler for center.
 // It wraps the MCP SSE endpoint with bearer token auth.
-func NewMCPHandler(reg *registry.Registry, rtr *router.Router, clientTokens []string) http.Handler {
-	srv := buildServer(reg, rtr)
+// fwd and log are optional (pass nil to disable).
+func NewMCPHandler(reg *registry.Registry, rtr *router.Router, clientTokens []string, fwd RemoteForwarder, log CallLogger, instanceID string) http.Handler {
+	srv := buildServer(reg, rtr, fwd, log, instanceID)
 	handler := sdkmcp.NewSSEHandler(func(*http.Request) *sdkmcp.Server { return srv }, nil)
 	return BearerTokenMiddleware(clientTokens, handler)
 }
 
-func buildServer(reg *registry.Registry, rtr *router.Router) *sdkmcp.Server {
+func buildServer(reg *registry.Registry, rtr *router.Router, fwd RemoteForwarder, log CallLogger, instanceID string) *sdkmcp.Server {
 	srv := sdkmcp.NewServer(&sdkmcp.Implementation{
 		Name:    "sys-mcp-center",
 		Version: "0.1.0",
@@ -40,7 +53,7 @@ func buildServer(reg *registry.Registry, rtr *router.Router) *sdkmcp.Server {
 
 	// 7 agent proxy tools.
 	for _, toolName := range agentToolNames {
-		registerAgentProxyTool(srv, reg, rtr, toolName)
+		registerAgentProxyTool(srv, reg, rtr, toolName, fwd, log, instanceID)
 	}
 
 	// 多机并发工具
@@ -80,13 +93,17 @@ type agentInfo struct {
 func registerListAgents(srv *sdkmcp.Server, reg *registry.Registry) {
 	tool := &sdkmcp.Tool{
 		Name:        "list_agents",
-		Description: "List all registered agents and proxies with their online status.",
+		Description: "List all registered terminal agents (node_type=agent) with their online status.",
 		InputSchema: emptySchema,
 	}
 	srv.AddTool(tool, func(ctx context.Context, req *sdkmcp.CallToolRequest) (*sdkmcp.CallToolResult, error) {
 		records := reg.All()
 		agents := make([]agentInfo, 0, len(records))
+		online := 0
 		for _, r := range records {
+			if r.NodeType != "agent" {
+				continue // proxy 节点不暴露给 AI 调用面
+			}
 			agents = append(agents, agentInfo{
 				Hostname:     r.Hostname,
 				IP:           r.IP,
@@ -96,11 +113,14 @@ func registerListAgents(srv *sdkmcp.Server, reg *registry.Registry) {
 				ProxyPath:    r.ProxyPath,
 				AgentVersion: r.AgentVersion,
 			})
+			if r.Status == registry.StatusOnline {
+				online++
+			}
 		}
 		res := listAgentsResult{
 			Agents: agents,
 			Total:  len(agents),
-			Online: reg.OnlineCount(),
+			Online: online,
 		}
 		b, _ := json.Marshal(res)
 		return &sdkmcp.CallToolResult{
@@ -111,7 +131,7 @@ func registerListAgents(srv *sdkmcp.Server, reg *registry.Registry) {
 	})
 }
 
-func registerAgentProxyTool(srv *sdkmcp.Server, reg *registry.Registry, rtr *router.Router, toolName string) {
+func registerAgentProxyTool(srv *sdkmcp.Server, reg *registry.Registry, rtr *router.Router, toolName string, fwd RemoteForwarder, log CallLogger, instanceID string) {
 	tool := &sdkmcp.Tool{
 		Name:        toolName,
 		Description: agentToolDescription(toolName),
@@ -137,16 +157,44 @@ func registerAgentProxyTool(srv *sdkmcp.Server, reg *registry.Registry, rtr *rou
 			return errorResult("target_host must be a non-empty string"), nil
 		}
 
+		requestID := stream.NewRequestID(toolName)
+
 		rec := reg.Lookup(targetHost)
 		if rec == nil {
+			// 本实例找不到该 agent，尝试跨实例路由（HA 模式）。
+			if fwd != nil {
+				result, forwarded, err := fwd.ForwardIfNeeded(ctx, requestID, targetHost, toolName, string(argsRaw))
+				if forwarded {
+					if err != nil {
+						return errorResult(err.Error()), nil
+					}
+					return &sdkmcp.CallToolResult{
+						Content: []sdkmcp.Content{&sdkmcp.TextContent{Text: result}},
+					}, nil
+				}
+			}
 			return errorResult(fmt.Sprintf("agent %q not found", targetHost)), nil
 		}
 		if rec.Status != registry.StatusOnline {
 			return errorResult(fmt.Sprintf("agent %q is offline", targetHost)), nil
 		}
 
-		requestID := stream.NewRequestID(toolName)
+		// 记录调用日志（可选）
+		if log != nil {
+			_ = log.InsertToolCallLog(ctx, requestID, instanceID, targetHost, toolName, string(argsRaw))
+		}
+
 		result, err := rtr.Send(ctx, rec, requestID, toolName, string(argsRaw))
+
+		// 完成调用日志（可选）
+		if log != nil {
+			errMsg := ""
+			if err != nil {
+				errMsg = err.Error()
+			}
+			_ = log.CompleteToolCallLog(ctx, requestID, result, errMsg)
+		}
+
 		if err != nil {
 			return errorResult(err.Error()), nil
 		}

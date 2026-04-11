@@ -66,6 +66,12 @@ func (r *Router) Send(ctx context.Context, rec *registry.AgentRecord, requestID,
 	select {
 	case <-ctx.Done():
 		status = "timeout"
+		// 通知 agent 取消正在执行的请求，避免 agent goroutine 持续消耗资源。
+		_ = rec.RouteStream.Send(&tunnel.TunnelMessage{
+			Payload: &tunnel.TunnelMessage_CancelRequest{
+				CancelRequest: &tunnel.CancelRequest{RequestId: requestID},
+			},
+		})
 		return "", fmt.Errorf("router: timeout waiting for response from %s (request %s)", rec.Hostname, requestID)
 	case msg := <-slot.ch:
 		switch p := msg.Payload.(type) {

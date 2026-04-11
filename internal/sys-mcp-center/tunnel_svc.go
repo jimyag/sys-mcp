@@ -117,28 +117,36 @@ func (s *TunnelServiceServer) Connect(srv tunnel.TunnelService_ConnectServer) er
 		case *tunnel.TunnelMessage_ErrorResponse:
 			s.router.DeliverFromMessage(msg)
 		case *tunnel.TunnelMessage_RegisterRequest:
-			// Proxy forwarding a downstream agent's registration.
-			downstreamNodeType := "agent"
-			if p.RegisterRequest.NodeType == tunnel.NodeType_NODE_TYPE_PROXY {
-				downstreamNodeType = "proxy"
+			// Proxy forwarding a downstream agent's registration or heartbeat refresh.
+			// If the agent is already known, only refresh LastHeartbeat to preserve RegisteredAt.
+			hostname := p.RegisterRequest.Hostname
+			if s.reg.Lookup(hostname) != nil {
+				s.reg.UpdateHeartbeat(hostname)
+				s.logger.Debug("proxy-forwarded heartbeat received",
+					"hostname", hostname, "via_proxy", req.Hostname)
+			} else {
+				downstreamNodeType := "agent"
+				if p.RegisterRequest.NodeType == tunnel.NodeType_NODE_TYPE_PROXY {
+					downstreamNodeType = "proxy"
+				}
+				downstreamRec := &registry.AgentRecord{
+					Hostname:      hostname,
+					IP:            p.RegisterRequest.Ip,
+					OS:            p.RegisterRequest.Os,
+					AgentVersion:  p.RegisterRequest.AgentVersion,
+					NodeType:      downstreamNodeType,
+					ProxyPath:     p.RegisterRequest.ProxyPath,
+					RegisteredAt:  time.Now(),
+					LastHeartbeat: time.Now(),
+					Status:        registry.StatusOnline,
+					RouteStream:   ts, // route via the proxy's stream
+				}
+				s.reg.Register(downstreamRec)
+				s.logger.Info("proxy-forwarded agent registered",
+					"hostname", hostname,
+					"via_proxy", req.Hostname,
+				)
 			}
-			downstreamRec := &registry.AgentRecord{
-				Hostname:      p.RegisterRequest.Hostname,
-				IP:            p.RegisterRequest.Ip,
-				OS:            p.RegisterRequest.Os,
-				AgentVersion:  p.RegisterRequest.AgentVersion,
-				NodeType:      downstreamNodeType,
-				ProxyPath:     p.RegisterRequest.ProxyPath,
-				RegisteredAt:  time.Now(),
-				LastHeartbeat: time.Now(),
-				Status:        registry.StatusOnline,
-				RouteStream:   ts, // route via the proxy's stream
-			}
-			s.reg.Register(downstreamRec)
-			s.logger.Info("proxy-forwarded agent registered",
-				"hostname", p.RegisterRequest.Hostname,
-				"via_proxy", req.Hostname,
-			)
 		}
 	}
 }

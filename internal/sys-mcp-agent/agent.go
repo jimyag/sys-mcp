@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/credentials"
@@ -26,10 +27,11 @@ type ToolHandler func(ctx context.Context, argsJSON string) (string, error)
 
 // Agent is the main struct for sys-mcp-agent.
 type Agent struct {
-	cfg      *agentcfg.AgentConfig
-	handlers map[string]ToolHandler
-	dialer   *stream.Dialer
-	logger   *slog.Logger
+	cfg        *agentcfg.AgentConfig
+	handlers   map[string]ToolHandler
+	dialer     *stream.Dialer
+	logger     *slog.Logger
+	cancelFns  sync.Map // requestID -> context.CancelFunc
 }
 
 // New creates an Agent, wiring all tool handlers from the config.
@@ -114,6 +116,15 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 func (a *Agent) dispatch(msg *tunnel.TunnelMessage) {
+	// 处理取消请求
+	if cancel := msg.GetCancelRequest(); cancel != nil {
+		if fn, ok := a.cancelFns.LoadAndDelete(cancel.RequestId); ok {
+			fn.(context.CancelFunc)()
+			a.logger.Debug("cancel applied", "request_id", cancel.RequestId)
+		}
+		return
+	}
+
 	req := msg.GetToolRequest()
 	if req == nil {
 		return
@@ -121,7 +132,13 @@ func (a *Agent) dispatch(msg *tunnel.TunnelMessage) {
 	go func() {
 		timeout := time.Duration(a.cfg.ToolTimeoutSec) * time.Second
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
+
+		// 注册 cancel 函数供 CancelRequest 触发
+		a.cancelFns.Store(req.RequestId, cancel)
+		defer func() {
+			cancel()
+			a.cancelFns.Delete(req.RequestId)
+		}()
 
 		handler, ok := a.handlers[req.ToolName]
 		if !ok {

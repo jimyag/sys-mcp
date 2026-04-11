@@ -12,11 +12,12 @@ import (
 type RouterBridge struct {
 	store      *store.Store
 	instanceID string // 当前 center 实例 ID（本机不需要转发）
+	secret     string // ha.internal_secret，传递给 ForwardToCenter
 }
 
 // NewRouterBridge 创建跨实例路由桥。
-func NewRouterBridge(st *store.Store, instanceID string) *RouterBridge {
-	return &RouterBridge{store: st, instanceID: instanceID}
+func NewRouterBridge(st *store.Store, instanceID, secret string) *RouterBridge {
+	return &RouterBridge{store: st, instanceID: instanceID, secret: secret}
 }
 
 // ForwardIfNeeded 查询 PG 找到 targetHost 所在的 center 实例，然后转发工具请求。
@@ -39,7 +40,7 @@ func (b *RouterBridge) ForwardIfNeeded(ctx context.Context, requestID, targetHos
 		return "", false, fmt.Errorf("ha: center instance %s address not found: %w", agentRow.CenterID, err)
 	}
 
-	result, err := ForwardToCenter(ctx, targetAddr, ForwardRequest{
+	result, err := ForwardToCenter(ctx, targetAddr, b.secret, ForwardRequest{
 		RequestID:  requestID,
 		ToolName:   toolName,
 		ArgsJSON:   argsJSON,

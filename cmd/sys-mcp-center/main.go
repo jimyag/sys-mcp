@@ -71,6 +71,10 @@ func main() {
 
 	rtr := router.New(cfg.Router.RequestTimeoutSec)
 
+	// 计算 center 实例 ID（hostname + grpc port）
+	hostname, _ := os.Hostname()
+	instanceID := hostname + cfg.Listen.GRPCAddress
+
 	// PostgreSQL 存储层（可选）
 	var st *store.Store
 	var routerBridge *ha.RouterBridge
@@ -88,17 +92,13 @@ func main() {
 		}
 		logger.Info("PostgreSQL 存储层已启用")
 
-		// 计算 center 实例 ID 和内部地址
-		h, _ := os.Hostname()
-		instanceID := h + cfg.Listen.GRPCAddress
 		internalAddr := cfg.Listen.HTTPAddress // 内部转发使用同一 HTTP 端口
-
 		registrar := ha.NewCenterRegistrar(st, instanceID, internalAddr, logger)
 		if regErr := registrar.Start(ctx); regErr != nil {
 			fmt.Fprintf(os.Stderr, "error: register center instance: %v\n", regErr)
 			os.Exit(1)
 		}
-		routerBridge = ha.NewRouterBridge(st, instanceID)
+		routerBridge = ha.NewRouterBridge(st, instanceID, cfg.HA.InternalSecret)
 	}
 
 	tunnelSvc := center.NewTunnelServiceServer(reg, rtr, cfg.Auth.AgentTokens, logger)
@@ -121,11 +121,16 @@ func main() {
 	grpcServer := grpc.NewServer(grpcCreds)
 	tunnel.RegisterTunnelServiceServer(grpcServer, tunnelSvc)
 
-	mcpHandler := centermcp.NewMCPHandler(reg, rtr, cfg.Auth.ClientTokens)
+	var callLogger centermcp.CallLogger
+	if st != nil {
+		callLogger = st
+	}
+
+	mcpHandler := centermcp.NewMCPHandler(reg, rtr, cfg.Auth.ClientTokens, routerBridge, callLogger, instanceID)
 
 	// HTTP 路由：/internal/forward 用于跨 center 实例转发，其余走 MCP handler
 	httpMux := http.NewServeMux()
-	httpMux.HandleFunc("/internal/forward", makeInternalForwardHandler(reg, rtr, logger))
+	httpMux.HandleFunc("/internal/forward", makeInternalForwardHandler(reg, rtr, cfg.HA.InternalSecret, logger))
 	httpMux.Handle("/", mcpHandler)
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -190,9 +195,6 @@ func main() {
 		})
 	}
 
-	// 确保 routerBridge 的引用被使用（避免 unused variable 错误）
-	_ = routerBridge
-
 	if err := g.Wait(); err != nil && err != context.Canceled {
 		logger.Error("center exited with error", "error", err)
 		os.Exit(1)
@@ -214,11 +216,19 @@ func parseLogLevel(level string) slog.Level {
 
 // makeInternalForwardHandler 创建内部工具转发 HTTP 处理器。
 // 其他 center 实例通过 POST /internal/forward 将工具请求转发到本实例。
-func makeInternalForwardHandler(reg *registry.Registry, rtr *router.Router, logger *slog.Logger) http.HandlerFunc {
+// secret 若非空，则要求请求携带 X-Internal-Auth: <secret> 头。
+func makeInternalForwardHandler(reg *registry.Registry, rtr *router.Router, secret string, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
+		}
+		// 鉴权：非空 secret 要求 header 匹配
+		if secret != "" {
+			if r.Header.Get("X-Internal-Auth") != secret {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 		}
 		var req ha.ForwardRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -16,6 +16,7 @@ type CenterConfig struct {
 	Logging  Logging  `yaml:"logging"`
 	Database Database `yaml:"database"`
 	Metrics  Metrics  `yaml:"metrics"`
+	HA       HA       `yaml:"ha"`
 }
 
 // Listen describes the network addresses for center.
@@ -68,6 +69,13 @@ type Metrics struct {
 	Enable bool `yaml:"enable"`
 	// Address 是 metrics HTTP 服务监听地址，默认 ":9091"。
 	Address string `yaml:"address"`
+}
+
+// HA 配置高可用跨实例转发（可选）。
+type HA struct {
+	// InternalSecret 是实例间 /internal/forward 调用的共享密钥。
+	// 若为空则不启用 internal endpoint 鉴权（仅适用于受信任内网）。
+	InternalSecret string `yaml:"internal_secret"`
 }
 
 // Load reads the YAML file at path and returns a validated CenterConfig.

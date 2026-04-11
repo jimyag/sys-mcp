@@ -37,6 +37,9 @@ type DownstreamService struct {
 	// pendingMu protects pending map: requestID -> response channel.
 	pendingMu sync.Mutex
 	pending   map[string]chan *tunnel.TunnelMessage
+
+	// pendingRequests maps requestID -> targetHost for cancel routing.
+	pendingRequests sync.Map
 }
 
 // NewDownstreamService creates a DownstreamService.
@@ -162,14 +165,21 @@ func (s *DownstreamService) Connect(srv tunnel.TunnelService_ConnectServer) erro
 			}
 		case *tunnel.TunnelMessage_ToolResponse:
 			// Forward tool response upstream so center can deliver it.
+			if resp := msg.GetToolResponse(); resp != nil {
+				s.pendingRequests.Delete(resp.RequestId)
+			}
 			_ = s.upstream.Send(msg)
 		case *tunnel.TunnelMessage_ErrorResponse:
+			if resp := msg.GetErrorResponse(); resp != nil {
+				s.pendingRequests.Delete(resp.RequestId)
+			}
 			_ = s.upstream.Send(msg)
 		}
 	}
 }
 
 // DeliverToolRequest routes a ToolRequest from upstream to the correct downstream stream.
+// It records the request→targetHost mapping so CancelRequest can find the right stream.
 func (s *DownstreamService) DeliverToolRequest(msg *tunnel.TunnelMessage) {
 	req := msg.GetToolRequest()
 	if req == nil {
@@ -189,8 +199,32 @@ func (s *DownstreamService) DeliverToolRequest(msg *tunnel.TunnelMessage) {
 		})
 		return
 	}
+	// Track requestID -> targetHost for cancel routing.
+	s.pendingRequests.Store(req.RequestId, req.TargetHost)
 	if err := rec.RouteStream.Send(msg); err != nil {
+		s.pendingRequests.Delete(req.RequestId)
 		s.logger.Warn("failed to forward tool request to downstream", "host", req.TargetHost, "error", err)
+	}
+}
+
+// DeliverCancelRequest forwards a CancelRequest from upstream to the downstream agent
+// that is handling the corresponding tool request.
+func (s *DownstreamService) DeliverCancelRequest(msg *tunnel.TunnelMessage) {
+	cancel := msg.GetCancelRequest()
+	if cancel == nil {
+		return
+	}
+	v, ok := s.pendingRequests.LoadAndDelete(cancel.RequestId)
+	if !ok {
+		return // request already completed or not found
+	}
+	targetHost := v.(string)
+	rec := s.reg.Lookup(targetHost)
+	if rec == nil {
+		return
+	}
+	if err := rec.RouteStream.Send(msg); err != nil {
+		s.logger.Warn("failed to forward cancel to downstream", "host", targetHost, "request_id", cancel.RequestId, "error", err)
 	}
 }
 
