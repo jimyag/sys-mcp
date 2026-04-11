@@ -83,7 +83,16 @@ func Run(ctx context.Context, configPath string) error {
 		callLogger = st
 	}
 
-	mcpHandler := centermcp.NewMCPHandler(reg, rtr, cfg.Auth.ClientTokens, routerBridge, callLogger, instanceID)
+	// Wrap routerBridge in a non-nil interface only when HA is actually configured.
+	// Assigning a nil *ha.RouterBridge directly to RemoteForwarder would produce a
+	// non-nil interface value (type != nil, pointer == nil), causing a nil-pointer
+	// panic the first time ForwardIfNeeded is called.
+	var fwd centermcp.RemoteForwarder
+	if routerBridge != nil {
+		fwd = routerBridge
+	}
+
+	mcpHandler := centermcp.NewMCPHandler(reg, rtr, cfg.Auth.ClientTokens, fwd, callLogger, instanceID)
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/internal/forward", makeInternalForwardHandler(reg, rtr, cfg.HA.InternalSecret, logger, callLogger, instanceID))
 	httpMux.Handle("/", mcpHandler)
