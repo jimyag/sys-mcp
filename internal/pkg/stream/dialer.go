@@ -189,9 +189,3 @@ func (d *Dialer) heartbeat(ctx context.Context, stream tunnel.TunnelService_Conn
 	}
 }
 
-func min(a, b time.Duration) time.Duration {
-	if a < b {
-		return a
-	}
-	return b
-}

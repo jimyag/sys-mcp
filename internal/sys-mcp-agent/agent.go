@@ -3,7 +3,6 @@ package agent
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-agent/apiproxy"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-agent/collector"
+	"github.com/jimyag/sys-mcp/internal/pkg/logutil"
 	agentcfg "github.com/jimyag/sys-mcp/internal/sys-mcp-agent/config"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-agent/fileops"
 )
@@ -38,7 +38,7 @@ type Agent struct {
 func New(cfg *agentcfg.AgentConfig) *Agent {
 	a := &Agent{cfg: cfg, handlers: make(map[string]ToolHandler)}
 	a.logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		Level: parseLogLevel(cfg.Logging.Level),
+		Level: logutil.ParseLevel(cfg.Logging.Level),
 	}))
 
 	guard := fileops.NewPathGuard(cfg.Security.AllowedPaths, cfg.Security.BlockedPaths)
@@ -178,29 +178,15 @@ func (a *Agent) sendError(requestID, code, message string) {
 }
 
 func (a *Agent) buildCredentials() (credentials.TransportCredentials, error) {
-	tls := a.cfg.Upstream.TLS
-	if tls.CertFile == "" && tls.KeyFile == "" && tls.CAFile == "" {
+	tlsOpt := a.cfg.Upstream.TLS
+	if tlsOpt.CertFile == "" && tlsOpt.KeyFile == "" && tlsOpt.CAFile == "" {
 		return insecure.NewCredentials(), nil
 	}
-	tlsCfg, err := tlsconf.LoadClientTLS(tls.CertFile, tls.KeyFile, tls.CAFile)
+	tlsCfg, err := tlsconf.LoadClientTLS(tlsOpt.CertFile, tlsOpt.KeyFile, tlsOpt.CAFile)
 	if err != nil {
 		return nil, err
 	}
 	return credentials.NewTLS(tlsCfg), nil
 }
 
-func parseLogLevel(level string) slog.Level {
-	switch level {
-	case "debug":
-		return slog.LevelDebug
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
-}
 
-// ensure tls package is used (import alias avoids conflict)
-var _ *tls.Config

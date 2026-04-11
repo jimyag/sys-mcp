@@ -17,6 +17,7 @@ import (
 	apitunnel "github.com/jimyag/sys-mcp/api/tunnel"
 	pkgstream "github.com/jimyag/sys-mcp/internal/pkg/stream"
 	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
+	"github.com/jimyag/sys-mcp/internal/pkg/logutil"
 	proxycfg "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy/config"
 	proxyreg "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy/registry"
 	proxytunnel "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy/tunnel"
@@ -29,7 +30,7 @@ func Run(ctx context.Context, configPath string) error {
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		Level: parseLogLevel(cfg.Logging.Level),
+		Level: logutil.ParseLevel(cfg.Logging.Level),
 	}))
 
 	proxyHostname := cfg.Hostname
@@ -167,15 +168,3 @@ func buildDownstreamCreds(cfg *proxycfg.ProxyConfig) (credentials.TransportCrede
 	return insecure.NewCredentials(), nil
 }
 
-func parseLogLevel(level string) slog.Level {
-	switch level {
-	case "debug":
-		return slog.LevelDebug
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
-}

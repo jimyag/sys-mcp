@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/jimyag/sys-mcp/api/tunnel"
-	pkgstream "github.com/jimyag/sys-mcp/internal/pkg/stream"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/metrics"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/registry"
 )
@@ -142,5 +141,3 @@ func (r *Router) DeliverFromMessage(msg *tunnel.TunnelMessage) {
 	r.Deliver(requestID, msg)
 }
 
-// DeliverStream is not needed — keep the interface simple.
-var _ pkgstream.TunnelStream // import check

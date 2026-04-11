@@ -20,6 +20,7 @@ import (
 	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
 	centercfg "github.com/jimyag/sys-mcp/internal/sys-mcp-center/config"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/ha"
+	"github.com/jimyag/sys-mcp/internal/pkg/logutil"
 	centermcp "github.com/jimyag/sys-mcp/internal/sys-mcp-center/mcp"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/registry"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/router"
@@ -33,7 +34,7 @@ func Run(ctx context.Context, configPath string) error {
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		Level: parseLogLevel(cfg.Logging.Level),
+		Level: logutil.ParseLevel(cfg.Logging.Level),
 	}))
 
 	reg := registry.New()
@@ -41,7 +42,10 @@ func Run(ctx context.Context, configPath string) error {
 
 	var pgOfflineCallback func(context.Context, string)
 
-	hostname, _ := os.Hostname()
+	hostname, err := os.Hostname()
+	if err != nil {
+		logger.Warn("os.Hostname() failed, instanceID will use empty hostname", "error", err)
+	}
 	instanceID := hostname + cfg.Listen.GRPCAddress
 
 	var st *store.Store
@@ -195,18 +199,6 @@ func buildGRPCServerOption(cfg *centercfg.CenterConfig, logger *slog.Logger) (gr
 	return grpc.Creds(insecure.NewCredentials()), nil
 }
 
-func parseLogLevel(level string) slog.Level {
-	switch level {
-	case "debug":
-		return slog.LevelDebug
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
-}
 
 // makeInternalForwardHandler 创建内部工具转发 HTTP 处理器。
 // 其他 center 实例通过 POST /internal/forward 将工具请求转发到本实例。

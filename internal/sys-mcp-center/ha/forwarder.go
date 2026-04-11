@@ -91,7 +91,7 @@ func ForwardToCenter(ctx context.Context, internalAddress, secret string, req Fo
 		return "", fmt.Errorf("ha: /internal/forward rejected (401 Unauthorized) — check ha.internal_secret config")
 	}
 
-	data, _ := io.ReadAll(resp.Body)
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	var fwdResp ForwardResponse
 	if err := json.Unmarshal(data, &fwdResp); err != nil {
 		return "", fmt.Errorf("ha: decode response: %w", err)

@@ -131,7 +131,7 @@ func SearchFileContent(ctx context.Context, guard *PathGuard, argsJSON string) (
 		}
 
 		// Context before.
-		for b := max2(0, i-p.ContextBefore); b < i; b++ {
+		for b := max(0, i-p.ContextBefore); b < i; b++ {
 			select {
 			case <-ctx.Done():
 				return "", ctx.Err()
@@ -148,7 +148,7 @@ func SearchFileContent(ctx context.Context, guard *PathGuard, argsJSON string) (
 			addedLines[i] = true
 		}
 		// Context after.
-		for a := i + 1; a <= min2(len(allLines)-1, i+p.ContextAfter); a++ {
+		for a := i + 1; a <= min(len(allLines)-1, i+p.ContextAfter); a++ {
 			select {
 			case <-ctx.Done():
 				return "", ctx.Err()
@@ -179,16 +179,3 @@ func makeMatchLine(p SearchFileContentParams, idx int, content, ctx string) Matc
 	return m
 }
 
-func max2(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min2(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

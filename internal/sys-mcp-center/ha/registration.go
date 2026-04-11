@@ -54,11 +54,13 @@ func (r *CenterRegistrar) Start(ctx context.Context) error {
 				}
 				return
 			case <-ticker.C:
-				hbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				if err := r.store.UpsertCenter(hbCtx, r.instanceID, r.internalAddress); err != nil {
-					r.logger.Warn("center 心跳更新失败", "error", err)
-				}
-				cancel()
+				func() {
+					hbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					if err := r.store.UpsertCenter(hbCtx, r.instanceID, r.internalAddress); err != nil {
+						r.logger.Warn("center 心跳更新失败", "error", err)
+					}
+				}()
 			}
 		}
 	}()

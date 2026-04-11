@@ -4,11 +4,16 @@ package store
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// ErrNotFound is returned by Get* methods when the requested record does not exist.
+var ErrNotFound = errors.New("store: not found")
 
 //go:embed schema.sql
 var schemaDDL string
@@ -130,6 +135,9 @@ func (s *Store) GetAgent(ctx context.Context, hostname string) (*AgentRow, error
 		&row.Hostname, &row.IP, &row.OS, &row.AgentVersion, &row.NodeType,
 		&row.ProxyPath, &row.CenterID, &row.Status, &row.RegisteredAt, &row.LastHeartbeat,
 	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -163,6 +171,9 @@ func (s *Store) GetCenterAddress(ctx context.Context, instanceID string) (string
 		`SELECT internal_address FROM center_instances WHERE instance_id = $1`,
 		instanceID,
 	).Scan(&addr)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
 	return addr, err
 }
 

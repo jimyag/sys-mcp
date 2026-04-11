@@ -2,6 +2,7 @@ package ha
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/store"
@@ -32,9 +33,15 @@ func NewRouterBridge(st *store.Store, instanceID, secret string, useTLS, skipVer
 // 如果 agent 在本实例，返回 (nil, false) 表示不需要转发。
 func (b *RouterBridge) ForwardIfNeeded(ctx context.Context, requestID, targetHost, toolName, argsJSON string) (string, bool, error) {
 	agentRow, err := b.store.GetAgent(ctx, targetHost)
+	if errors.Is(err, store.ErrNotFound) {
+		// agent 既不在本地 registry，也不在 PG 中，说明 agent 从未注册。
+		// 返回 (false, nil) 表示"无需转发"，调用方继续走 not-found 分支。
+		return "", false, nil
+	}
 	if err != nil {
-		// agent 不在 PG 中，也不在本地，说明 agent 未注册
-		return "", false, fmt.Errorf("ha: agent %s not found in database", targetHost)
+		// PG 查询本身失败（连接断开、超时等），区别于"找不到 agent"。
+		// 返回 forwarded=true 让调用方看到错误，而不是静默走 not-found 分支。
+		return "", true, fmt.Errorf("ha: query agent %s: %w", targetHost, err)
 	}
 
 	if agentRow.CenterID == b.instanceID {
