@@ -1,8 +1,11 @@
-# sys-mcp-proxy configuration example
-# Place at /etc/sys-mcp/proxy.yaml or ./sys-mcp-proxy.yaml
+# sys-mcp-proxy 配置示例
+# 放置路径：/etc/sys-mcp/proxy.yaml 或 ./sys-mcp-proxy.yaml
+
+# hostname 是 proxy 在 center 中的唯一标识。建议以 IDC 或机房命名。
+hostname: "proxy-idc-beijing"
 
 listen:
-  # grpc_address is the address for the downstream gRPC server that agents connect to.
+  # grpc_address 是下游 agent 连接的 gRPC 地址。
   grpc_address: ":9091"
   tls:
     cert_file: ""
@@ -10,18 +13,17 @@ listen:
     ca_file:   ""
 
 upstream:
-  # address is the gRPC address of the upstream node (center or parent proxy).
+  # address 是上游节点（center 或父级 proxy）的 gRPC 地址。
   address: "center.example.com:9090"
-  # token is the bearer token this proxy uses to authenticate with upstream.
+  # token 是该 proxy 向上游认证用的 Bearer Token。
   token: "your-proxy-token-here"
-  insecure_tls: false
   tls:
     cert_file: ""
     key_file:  ""
     ca_file:   ""
 
 auth:
-  # agent_tokens are bearer tokens accepted from downstream agents/proxies.
+  # agent_tokens 是下游 agent/proxy 使用的 Bearer Token 列表。
   agent_tokens:
     - "your-agent-token-here"
 

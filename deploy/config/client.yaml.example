@@ -1,12 +1,13 @@
-# sys-mcp-client configuration example
-# Place at ~/.config/sys-mcp/client.yaml or ./sys-mcp-client.yaml
-# IMPORTANT: chmod 0600 this file — it contains your auth token.
+# sys-mcp-client 配置示例
+# 放置路径：~/.config/sys-mcp/client.yaml 或 ./sys-mcp-client.yaml
+# 重要：chmod 0600 此文件——其中包含认证令牌。
 
 center:
-  # url is the HTTP base URL of sys-mcp-center's MCP endpoint.
+  # url 是 sys-mcp-center MCP 端点的 HTTP 基础 URL。
   url: "http://center.example.com:8080"
-  # token is the bearer token used to authenticate with center.
+  # token 是与 center 认证用的 Bearer Token。
   token: "your-client-token-here"
 
 logging:
   level: "info"   # debug | info | warn | error
+  format: "json"  # json | text

@@ -1,28 +1,27 @@
-# sys-mcp-center configuration example
-# Place at /etc/sys-mcp/center.yaml or ./sys-mcp-center.yaml
+# sys-mcp-center 配置示例
+# 放置路径：/etc/sys-mcp/center.yaml 或 ./sys-mcp-center.yaml
 
 listen:
-  # http_address is the address for the MCP/SSE HTTP endpoint (used by AI clients).
+  # http_address 是 MCP/SSE HTTP 端点地址（AI 客户端连接）。
   http_address: ":8080"
-  # grpc_address is the address for the gRPC tunnel (used by agents and proxies).
+  # grpc_address 是 gRPC 隧道地址（agent 和 proxy 连接）。
   grpc_address: ":9090"
-  # tls holds optional TLS material for the listeners above.
   tls:
     cert_file: ""
     key_file:  ""
     ca_file:   ""
 
 auth:
-  # client_tokens are bearer tokens accepted from MCP clients (AI assistants).
+  # client_tokens 是 MCP 客户端（AI 助手）使用的 Bearer Token 列表。
   client_tokens:
     - "your-client-token-here"
-  # agent_tokens are bearer tokens accepted from agents and proxies.
+  # agent_tokens 是 agent 和 proxy 使用的 Bearer Token 列表。
   agent_tokens:
     - "your-agent-token-here"
 
 router:
-  # request_timeout_sec is the max seconds to wait for an agent tool response.
-  request_timeout_sec: 5
+  # request_timeout_sec 是等待 agent 工具响应的最大超时秒数。默认 5。
+  request_timeout_sec: 10
 
 logging:
   level: "info"   # debug | info | warn | error

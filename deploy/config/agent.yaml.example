@@ -1,29 +1,40 @@
-# sys-mcp-agent configuration example
-# Place at /etc/sys-mcp/agent.yaml or ./sys-mcp-agent.yaml
+# sys-mcp-agent 配置示例
+# 放置路径：/etc/sys-mcp/agent.yaml 或 ./sys-mcp-agent.yaml
 
-center:
-  # address is the gRPC address of sys-mcp-center (or sys-mcp-proxy).
+# hostname 覆盖 os.Hostname()，作为节点在 center 中的唯一标识。
+# 同一台机器部署多个 agent 实例时必须手动设置，避免冲突。
+hostname: "my-server-01"
+
+upstream:
+  # address 是 sys-mcp-center 或 sys-mcp-proxy 的 gRPC 地址（host:port）。必填。
   address: "center.example.com:9090"
-  # token is the bearer token this agent uses to authenticate.
+  # token 是该 agent 向上游认证用的 Bearer Token。必填。
   token: "your-agent-token-here"
-  # insecure_tls skips TLS verification (development only; do not use in production).
-  insecure_tls: false
-  # tls holds optional mTLS material.
   tls:
     cert_file: ""
     key_file:  ""
     ca_file:   ""
 
-tools:
-  # tool_timeout_sec is the max seconds allowed for a single tool invocation.
-  tool_timeout_sec: 25
-  # max_file_size_mb limits ReadFile responses.
+# tool_timeout_sec 是单次工具调用的最大超时秒数。默认 25。
+tool_timeout_sec: 25
+
+# reconnect_max_delay_sec 是断线重连的最大退避间隔（秒）。默认 5。
+reconnect_max_delay_sec: 5
+
+security:
+  # max_file_size_mb 限制 read_file 返回的最大文件大小。默认 100。
   max_file_size_mb: 100
-  # blocked_paths are filesystem paths the agent refuses to access.
+  # blocked_paths 是始终拒绝访问的路径前缀列表（优先于 allowed_paths）。
   blocked_paths:
     - /proc
     - /sys
     - /dev
+  # allowed_paths 非空时，仅允许访问列表中的路径前缀。
+  allowed_paths: []
+  # allow_privileged_ports 允许 proxy_local_api 访问 <1024 的端口。默认 false。
+  allow_privileged_ports: false
+  # allowed_ports 非空时，仅允许 proxy_local_api 访问列表中的端口。
+  allowed_ports: []
 
 logging:
   level: "info"   # debug | info | warn | error
