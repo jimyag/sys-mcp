@@ -28,15 +28,11 @@ type Upstream interface {
 // local registry and forwards them upstream.
 type DownstreamService struct {
 	tunnel.UnimplementedTunnelServiceServer
-	reg         *registry.Registry
-	agentTokens []string
-	upstream    Upstream
+	reg           *registry.Registry
+	agentTokens   []string
+	upstream      Upstream
 	proxyHostname string
-	logger      *slog.Logger
-
-	// pendingMu protects pending map: requestID -> response channel.
-	pendingMu sync.Mutex
-	pending   map[string]chan *tunnel.TunnelMessage
+	logger        *slog.Logger
 
 	// pendingRequests maps requestID -> targetHost for cancel routing.
 	pendingRequests sync.Map
@@ -56,7 +52,6 @@ func NewDownstreamService(
 		upstream:      upstream,
 		proxyHostname: proxyHostname,
 		logger:        logger,
-		pending:       make(map[string]chan *tunnel.TunnelMessage),
 	}
 }
 

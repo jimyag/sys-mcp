@@ -15,11 +15,11 @@ import (
 
 	"github.com/jimyag/sys-mcp/api/tunnel"
 	"github.com/jimyag/sys-mcp/internal/pkg/stream"
-	agentcfg "github.com/jimyag/sys-mcp/internal/sys-mcp-agent/config"
+	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-agent/apiproxy"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-agent/collector"
+	agentcfg "github.com/jimyag/sys-mcp/internal/sys-mcp-agent/config"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-agent/fileops"
-	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
 )
 
 // ToolHandler is the function signature for all tool handlers.
@@ -27,11 +27,11 @@ type ToolHandler func(ctx context.Context, argsJSON string) (string, error)
 
 // Agent is the main struct for sys-mcp-agent.
 type Agent struct {
-	cfg        *agentcfg.AgentConfig
-	handlers   map[string]ToolHandler
-	dialer     *stream.Dialer
-	logger     *slog.Logger
-	cancelFns  sync.Map // requestID -> context.CancelFunc
+	cfg       *agentcfg.AgentConfig
+	handlers  map[string]ToolHandler
+	dialer    *stream.Dialer
+	logger    *slog.Logger
+	cancelFns sync.Map // requestID -> context.CancelFunc
 }
 
 // New creates an Agent, wiring all tool handlers from the config.
@@ -87,9 +87,9 @@ func (a *Agent) Run(ctx context.Context) error {
 	registerMsg := &tunnel.TunnelMessage{
 		Payload: &tunnel.TunnelMessage_RegisterRequest{
 			RegisterRequest: &tunnel.RegisterRequest{
-				Hostname:  hostname,
-				NodeType:  tunnel.NodeType_NODE_TYPE_AGENT,
-				Token:     a.cfg.Upstream.Token,
+				Hostname:     hostname,
+				NodeType:     tunnel.NodeType_NODE_TYPE_AGENT,
+				Token:        a.cfg.Upstream.Token,
 				AgentVersion: "0.1.0",
 			},
 		},

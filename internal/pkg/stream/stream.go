@@ -2,7 +2,6 @@ package stream
 
 import (
 	"context"
-	"net"
 	"sync"
 
 	"google.golang.org/grpc/peer"
@@ -25,10 +24,9 @@ type TunnelStream interface {
 }
 
 type tunnelStream struct {
-	id         string
-	srv        tunnel.TunnelService_ConnectServer
-	cancelFunc context.CancelFunc
-	mu         sync.Mutex
+	id  string
+	srv tunnel.TunnelService_ConnectServer
+	mu  sync.Mutex
 }
 
 // WrapServerStream wraps a server-side gRPC stream into a TunnelStream.
@@ -57,9 +55,6 @@ func (s *tunnelStream) RemoteAddr() string {
 	p, ok := peer.FromContext(s.srv.Context())
 	if !ok || p.Addr == nil {
 		return "unknown"
-	}
-	if addr, ok := p.Addr.(net.Addr); ok {
-		return addr.String()
 	}
 	return p.Addr.String()
 }

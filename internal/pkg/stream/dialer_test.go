@@ -65,9 +65,9 @@ func TestDialerReconnects(t *testing.T) {
 		RegisterMsg: &tunnel.TunnelMessage{
 			Payload: &tunnel.TunnelMessage_RegisterRequest{
 				RegisterRequest: &tunnel.RegisterRequest{
-					Hostname:  "test-host",
-					NodeType:  tunnel.NodeType_NODE_TYPE_AGENT,
-					Token:     "tok",
+					Hostname: "test-host",
+					NodeType: tunnel.NodeType_NODE_TYPE_AGENT,
+					Token:    "tok",
 				},
 			},
 		},

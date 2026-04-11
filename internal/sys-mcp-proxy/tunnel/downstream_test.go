@@ -2,6 +2,8 @@ package tunnel_test
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -9,8 +11,6 @@ import (
 	"github.com/jimyag/sys-mcp/api/tunnel"
 	proxyreg "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy/registry"
 	proxytunnel "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy/tunnel"
-	"log/slog"
-	"os"
 )
 
 func TestDownstreamCompiles(t *testing.T) {
@@ -141,4 +141,3 @@ func TestDeliverCancelRequest_UnknownRequestIDIsNoop(t *testing.T) {
 		},
 	})
 }
-

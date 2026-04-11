@@ -20,16 +20,16 @@ const (
 
 // AgentRecord holds metadata about a registered agent.
 type AgentRecord struct {
-	Hostname     string
-	IP           string
-	OS           string
-	AgentVersion string
-	NodeType     string // "agent" or "proxy"
-	ProxyPath    []string
-	RegisteredAt time.Time
+	Hostname      string
+	IP            string
+	OS            string
+	AgentVersion  string
+	NodeType      string // "agent" or "proxy"
+	ProxyPath     []string
+	RegisteredAt  time.Time
 	LastHeartbeat time.Time
-	Status       Status
-	RouteStream  pkgstream.TunnelStream // the stream to send tool requests on
+	Status        Status
+	RouteStream   pkgstream.TunnelStream // the stream to send tool requests on
 }
 
 // Registry is the in-memory store of registered agents.

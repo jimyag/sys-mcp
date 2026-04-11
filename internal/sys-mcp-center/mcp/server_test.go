@@ -37,6 +37,7 @@ func (l *fakeLogger) InsertToolCallLog(_ context.Context, _, _, _, _, _ string) 
 	l.inserts++
 	return nil
 }
+
 func (l *fakeLogger) CompleteToolCallLog(_ context.Context, _, _, _ string) error {
 	l.completes++
 	return nil
@@ -186,4 +187,3 @@ func buildMCPServer(reg *registry.Registry, rtr *router.Router) *sdkmcp.Server {
 	// 测试 helper 直接构建 sdkmcp.Server（与生产路径完全相同）。
 	return mcp.BuildServerForTest(reg, rtr, nil, nil, "test-instance")
 }
-

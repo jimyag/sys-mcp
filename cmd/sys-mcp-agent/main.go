@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/jimyag/sys-mcp/internal/sys-mcp-agent"
+	agent "github.com/jimyag/sys-mcp/internal/sys-mcp-agent"
 	agentcfg "github.com/jimyag/sys-mcp/internal/sys-mcp-agent/config"
 )
 

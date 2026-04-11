@@ -14,11 +14,11 @@ import (
 // streamStub satisfies pkgstream.TunnelStream for testing.
 type streamStub struct{ id string }
 
-func (s *streamStub) Send(*tunnel.TunnelMessage) error          { return nil }
-func (s *streamStub) Recv() (*tunnel.TunnelMessage, error)     { return nil, context.Canceled }
-func (s *streamStub) ID() string                                { return s.id }
-func (s *streamStub) RemoteAddr() string                        { return "127.0.0.1:0" }
-func (s *streamStub) Context() context.Context                  { return context.Background() }
+func (s *streamStub) Send(*tunnel.TunnelMessage) error     { return nil }
+func (s *streamStub) Recv() (*tunnel.TunnelMessage, error) { return nil, context.Canceled }
+func (s *streamStub) ID() string                           { return s.id }
+func (s *streamStub) RemoteAddr() string                   { return "127.0.0.1:0" }
+func (s *streamStub) Context() context.Context             { return context.Background() }
 
 var _ pkgstream.TunnelStream = (*streamStub)(nil)
 

@@ -17,18 +17,18 @@ import (
 
 // HardwareInfo is the JSON shape returned by get_hardware_info.
 type HardwareInfo struct {
-	CPU     CPUInfo      `json:"cpu"`
-	Memory  MemInfo      `json:"memory"`
-	Disks   []DiskInfo   `json:"disks"`
-	Network []NetInfo    `json:"network"`
-	System  SystemInfo   `json:"system"`
+	CPU     CPUInfo    `json:"cpu"`
+	Memory  MemInfo    `json:"memory"`
+	Disks   []DiskInfo `json:"disks"`
+	Network []NetInfo  `json:"network"`
+	System  SystemInfo `json:"system"`
 }
 
 // CPUInfo contains CPU details.
 type CPUInfo struct {
-	ModelName   string    `json:"model_name"`
-	PhysicalCores int     `json:"physical_cores"`
-	LogicalCores  int     `json:"logical_cores"`
+	ModelName     string    `json:"model_name"`
+	PhysicalCores int       `json:"physical_cores"`
+	LogicalCores  int       `json:"logical_cores"`
 	UsagePercent  []float64 `json:"usage_percent"` // per-core
 }
 
@@ -52,11 +52,11 @@ type DiskInfo struct {
 
 // NetInfo contains network interface details.
 type NetInfo struct {
-	Name        string   `json:"name"`
-	HardwareAddr string  `json:"hardware_addr"`
-	Addrs       []string `json:"addrs"`
-	BytesSent   uint64   `json:"bytes_sent"`
-	BytesRecv   uint64   `json:"bytes_recv"`
+	Name         string   `json:"name"`
+	HardwareAddr string   `json:"hardware_addr"`
+	Addrs        []string `json:"addrs"`
+	BytesSent    uint64   `json:"bytes_sent"`
+	BytesRecv    uint64   `json:"bytes_recv"`
 }
 
 // SystemInfo contains OS/host details.
@@ -73,11 +73,11 @@ type SystemInfo struct {
 // GetHardwareInfo collects hardware and OS information concurrently.
 func GetHardwareInfo(ctx context.Context, _ string) (string, error) {
 	var (
-		cpuInfo HardwareInfo
-		memInfo MemInfo
+		cpuInfo   HardwareInfo
+		memInfo   MemInfo
 		diskInfos []DiskInfo
-		netInfos []NetInfo
-		sysInfo SystemInfo
+		netInfos  []NetInfo
+		sysInfo   SystemInfo
 	)
 
 	g, gctx := errgroup.WithContext(ctx)

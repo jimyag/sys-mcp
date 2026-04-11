@@ -17,12 +17,12 @@ type SearchFileContentParams struct {
 	Path    string `json:"path"`
 	Pattern string `json:"pattern"`
 	// Flags
-	IgnoreCase    bool `json:"ignore_case"`   // -i
-	InvertMatch   bool `json:"invert_match"`  // -v
-	ShowLineNums  bool `json:"show_line_nums"`// -n
-	CountOnly     bool `json:"count_only"`    // -c
-	ContextBefore int  `json:"context_before"`// -B
-	ContextAfter  int  `json:"context_after"` // -A
+	IgnoreCase    bool `json:"ignore_case"`    // -i
+	InvertMatch   bool `json:"invert_match"`   // -v
+	ShowLineNums  bool `json:"show_line_nums"` // -n
+	CountOnly     bool `json:"count_only"`     // -c
+	ContextBefore int  `json:"context_before"` // -B
+	ContextAfter  int  `json:"context_after"`  // -A
 	// MaxMatches limits the number of matches returned. 0 = unlimited.
 	MaxMatches int `json:"max_matches"`
 	// FixedString treats pattern as literal string, not regex. -F

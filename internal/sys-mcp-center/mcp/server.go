@@ -291,8 +291,8 @@ func registerMultiTool(srv *sdkmcp.Server, reg *registry.Registry, rtr *router.R
 
 		// Categorise explicit target hosts into: local agents, proxy errors, remote (HA) hosts.
 		// When TargetHosts is empty, collect all online local agents.
-		var records []*registry.AgentRecord    // local agents to batch-send
-		var remoteHosts []string               // hosts not found locally; try cross-instance fwd
+		var records []*registry.AgentRecord // local agents to batch-send
+		var remoteHosts []string            // hosts not found locally; try cross-instance fwd
 
 		if len(params.TargetHosts) == 0 {
 			for _, r := range reg.All() {
@@ -395,4 +395,3 @@ func registerMultiTool(srv *sdkmcp.Server, reg *registry.Registry, rtr *router.R
 		}, nil
 	})
 }
-

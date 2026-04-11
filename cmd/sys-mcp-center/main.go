@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/jimyag/sys-mcp/api/tunnel"
+	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
 	center "github.com/jimyag/sys-mcp/internal/sys-mcp-center"
 	centercfg "github.com/jimyag/sys-mcp/internal/sys-mcp-center/config"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/ha"
@@ -27,7 +28,6 @@ import (
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/registry"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/router"
 	"github.com/jimyag/sys-mcp/internal/sys-mcp-center/store"
-	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
 )
 
 var defaultConfigPaths = []string{
