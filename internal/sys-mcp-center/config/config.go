@@ -21,8 +21,8 @@ type CenterConfig struct {
 
 // Listen describes the network addresses for center.
 type Listen struct {
-	HTTPAddress string `yaml:"http_address"` // MCP/HTTP server, e.g. ":8080"
-	GRPCAddress string `yaml:"grpc_address"` // tunnel gRPC server, e.g. ":9090"
+	HTTPAddress string `yaml:"http_address"` // MCP/HTTP server, e.g. ":18880"
+	GRPCAddress string `yaml:"grpc_address"` // tunnel gRPC server, e.g. ":18890"
 	TLS         TLS    `yaml:"tls"`
 }
 
@@ -67,7 +67,7 @@ type Database struct {
 type Metrics struct {
 	// Enable 为 true 时暴露 /metrics 端点。
 	Enable bool `yaml:"enable"`
-	// Address 是 metrics HTTP 服务监听地址，默认 ":9091"。
+	// Address 是 metrics HTTP 服务监听地址，默认 ":18891"。
 	Address string `yaml:"address"`
 }
 
@@ -106,10 +106,10 @@ func Load(path string) (*CenterConfig, error) {
 
 func applyDefaults(cfg *CenterConfig) {
 	if cfg.Listen.HTTPAddress == "" {
-		cfg.Listen.HTTPAddress = ":8080"
+		cfg.Listen.HTTPAddress = ":18880"
 	}
 	if cfg.Listen.GRPCAddress == "" {
-		cfg.Listen.GRPCAddress = ":9090"
+		cfg.Listen.GRPCAddress = ":18890"
 	}
 	if cfg.Router.RequestTimeoutSec <= 0 {
 		cfg.Router.RequestTimeoutSec = 5
@@ -124,7 +124,7 @@ func applyDefaults(cfg *CenterConfig) {
 		cfg.Database.MaxConns = 10
 	}
 	if cfg.Metrics.Address == "" {
-		cfg.Metrics.Address = ":9091"
+		cfg.Metrics.Address = ":18891"
 	}
 }
 

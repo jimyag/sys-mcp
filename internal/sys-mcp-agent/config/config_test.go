@@ -20,14 +20,14 @@ func writeConfig(t *testing.T, dir, content string) string {
 func TestLoad_ValidConfig(t *testing.T) {
 	path := writeConfig(t, t.TempDir(), `
 upstream:
-  address: "localhost:9090"
+  address: "localhost:18890"
   token: "secret"
 `)
 	cfg, err := config.Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Upstream.Address != "localhost:9090" {
+	if cfg.Upstream.Address != "localhost:18890" {
 		t.Fatalf("unexpected address: %s", cfg.Upstream.Address)
 	}
 }
@@ -35,7 +35,7 @@ upstream:
 func TestLoad_Defaults(t *testing.T) {
 	path := writeConfig(t, t.TempDir(), `
 upstream:
-  address: "localhost:9090"
+  address: "localhost:18890"
   token: "secret"
 `)
 	cfg, err := config.Load(path)
@@ -70,7 +70,7 @@ upstream:
 func TestLoad_MissingToken(t *testing.T) {
 	path := writeConfig(t, t.TempDir(), `
 upstream:
-  address: "localhost:9090"
+  address: "localhost:18890"
 `)
 	_, err := config.Load(path)
 	if err == nil {

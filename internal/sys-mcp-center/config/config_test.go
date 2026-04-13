@@ -5,8 +5,8 @@ import "testing"
 func TestValidate_RequireInternalAddressWhenDatabaseAndHAEnabled(t *testing.T) {
 	cfg := &CenterConfig{
 		Listen: Listen{
-			HTTPAddress: ":8080",
-			GRPCAddress: ":9090",
+			HTTPAddress: ":18880",
+			GRPCAddress: ":18890",
 		},
 		Auth: Auth{
 			AgentTokens: []string{"tok"},

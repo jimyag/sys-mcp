@@ -16,7 +16,7 @@ type ClientConfig struct {
 
 // CenterConn describes how to connect to sys-mcp-center.
 type CenterConn struct {
-	// URL is the base HTTP(S) URL of the center MCP endpoint, e.g. "http://localhost:8080".
+	// URL is the base HTTP(S) URL of the center MCP endpoint, e.g. "http://localhost:18880".
 	URL string `yaml:"url"`
 	// Token is the bearer token used to authenticate with center.
 	Token string `yaml:"token"`

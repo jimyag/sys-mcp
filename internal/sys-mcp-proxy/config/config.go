@@ -22,7 +22,7 @@ type ProxyConfig struct {
 // Listen describes the local gRPC endpoint that downstream agents (or nested
 // proxies) connect to.
 type Listen struct {
-	// GRPCAddress is the listen address for the downstream gRPC tunnel server, e.g. ":9091".
+	// GRPCAddress is the listen address for the downstream gRPC tunnel server, e.g. ":18892".
 	GRPCAddress string `yaml:"grpc_address"`
 	TLS         TLS    `yaml:"tls"`
 }
@@ -76,7 +76,7 @@ func Load(path string) (*ProxyConfig, error) {
 
 func applyDefaults(cfg *ProxyConfig) {
 	if cfg.Listen.GRPCAddress == "" {
-		cfg.Listen.GRPCAddress = ":9091"
+		cfg.Listen.GRPCAddress = ":18892"
 	}
 	if cfg.Logging.Level == "" {
 		cfg.Logging.Level = "info"

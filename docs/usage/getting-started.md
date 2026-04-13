@@ -60,8 +60,8 @@ center 是整个系统的核心，应最先启动。
 
 ```yaml
 listen:
-  http_address: ":8080"   # AI 客户端连接的 HTTP/SSE 端口
-  grpc_address: ":9090"   # agent/proxy 连接的 gRPC 端口
+  http_address: ":18880"   # AI 客户端连接的 HTTP/SSE 端口
+  grpc_address: ":18890"   # agent/proxy 连接的 gRPC 端口
 
 auth:
   client_tokens:
@@ -103,7 +103,7 @@ systemctl enable --now sys-mcp-center
 hostname: "web-server-01"   # 必须唯一，用于在 center 中区分不同机器
 
 upstream:
-  address: "center.example.com:9090"  # center 的 gRPC 地址
+  address: "center.example.com:18890"  # center 的 gRPC 地址
   token: "your-agent-token"           # 与 center auth.agent_tokens 中的值一致
 
 tool_timeout_sec: 25
@@ -140,10 +140,10 @@ sys-mcp-agent -config /etc/sys-mcp/agent.yaml
 hostname: "proxy-idc-beijing"  # proxy 的唯一名称
 
 listen:
-  grpc_address: ":9091"  # 本 IDC 内 agent 连接的地址
+  grpc_address: ":18892"  # 本 IDC 内 agent 连接的地址
 
 upstream:
-  address: "center.example.com:9090"  # center 的 gRPC 地址
+  address: "center.example.com:18890"  # center 的 gRPC 地址
   token: "your-agent-token"           # 与 center auth.agent_tokens 一致
 
 auth:
@@ -159,7 +159,7 @@ logging:
 
 ```yaml
 upstream:
-  address: "proxy-idc-beijing:9091"
+  address: "proxy-idc-beijing:18892"
   token: "idc-agent-token"
 ```
 
@@ -175,7 +175,7 @@ upstream:
 
 ```yaml
 center:
-  url: "http://center.example.com:8080"
+  url: "http://center.example.com:18880"
   token: "your-client-token"
 
 logging:
@@ -260,7 +260,7 @@ center 向 AI 暴露以下 8 个工具，所有工具都需要 `target_host` 参
 
 ```bash
 curl -H "Authorization: Bearer your-client-token" \
-     http://center.example.com:8080/sse
+     http://center.example.com:18880/sse
 ```
 
 **Q：agent 断线后会自动重连吗？**

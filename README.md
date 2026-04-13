@@ -20,8 +20,8 @@ sys-mcp 是一个用 Go 编写的分布式 MCP（Model Context Protocol）平台
 graph TD
     AI["AI 助手\n(Claude / Cursor)"]
     Client["sys-mcp-client\n本地 stdio 桥接"]
-    Center["sys-mcp-center\n中心服务\nHTTP/SSE :8080\ngRPC :9090"]
-    Proxy["sys-mcp-proxy\n可选 IDC 聚合层\ngRPC :9091"]
+    Center["sys-mcp-center\n中心服务\nHTTP/SSE :18880\ngRPC :18890"]
+    Proxy["sys-mcp-proxy\n可选 IDC 聚合层\ngRPC :18892"]
     Agent1["sys-mcp-agent\n物理机 A"]
     Agent2["sys-mcp-agent\n物理机 B"]
     Agent3["sys-mcp-agent\n物理机 C（经 proxy）"]

@@ -8,13 +8,13 @@
 
 ```
 AI 客户端 (Python 测试脚本)
-        │  HTTP SSE  (:18080)
+        │  HTTP SSE  (:18880)
         ▼
-  sys-mcp-center  (:19090 gRPC, :18080 HTTP)
+  sys-mcp-center  (:18890 gRPC, :18880 HTTP)
         │  gRPC 长连接
         ├──── sys-mcp-agent [agent-direct]      直连，hostname=agent-direct
         │
-        └──── sys-mcp-proxy [proxy-idc1] (:19091 gRPC)
+        └──── sys-mcp-proxy [proxy-idc1] (:18892 gRPC)
                     │  gRPC 长连接
                     └── sys-mcp-agent [agent-behind-proxy]  hostname=agent-behind-proxy
 ```
@@ -55,8 +55,8 @@ mkdir -p /tmp/sys-mcp-test
 
 ```yaml
 listen:
-  http_address: ":18080"
-  grpc_address: ":19090"
+  http_address: ":18880"
+  grpc_address: ":18890"
 auth:
   client_tokens:
     - "test-client-token"
@@ -74,7 +74,7 @@ logging:
 ```yaml
 hostname: "agent-direct"
 upstream:
-  address: "127.0.0.1:19090"
+  address: "127.0.0.1:18890"
   token: "test-agent-token"
 tool_timeout_sec: 25
 security:
@@ -93,9 +93,9 @@ logging:
 ```yaml
 hostname: "proxy-idc1"
 listen:
-  grpc_address: ":19091"
+  grpc_address: ":18892"
 upstream:
-  address: "127.0.0.1:19090"
+  address: "127.0.0.1:18890"
   token: "test-agent-token"
 auth:
   agent_tokens:
@@ -110,7 +110,7 @@ logging:
 ```yaml
 hostname: "agent-behind-proxy"
 upstream:
-  address: "127.0.0.1:19091"
+  address: "127.0.0.1:18892"
   token: "test-proxy-agent-token"
 tool_timeout_sec: 25
 security:
@@ -128,7 +128,7 @@ logging:
 
 ```yaml
 center:
-  url: "http://127.0.0.1:18080"
+  url: "http://127.0.0.1:18880"
   token: "test-client-token"
 logging:
   level: "debug"
@@ -192,7 +192,7 @@ import time
 import requests
 import sseclient
 
-BASE_URL = "http://127.0.0.1:18080"
+BASE_URL = "http://127.0.0.1:18880"
 TOKEN = "test-client-token"
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
@@ -428,7 +428,7 @@ python3 /tmp/test_sys_mcp.py
 
 ### agent 无法注册
 
-- 检查 center 是否已启动，gRPC 端口（默认 `:19090`）是否可达。
+- 检查 center 是否已启动，gRPC 端口（默认 `:18890`）是否可达。
 - 检查 `upstream.token` 是否与 center 的 `auth.agent_tokens` 中的值一致。
 
 ### 工具调用超时
