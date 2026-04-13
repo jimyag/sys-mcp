@@ -54,7 +54,19 @@ builds:
       - -s -w
 
 archives:
-  - formats:
+  - id: center
+    ids: [sys-mcp-center]
+    formats:
+      - binary
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: proxy
+    ids: [sys-mcp-proxy]
+    formats:
+      - binary
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: agent
+    ids: [sys-mcp-agent]
+    formats:
       - binary
     name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
