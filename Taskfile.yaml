@@ -1,16 +1,39 @@
-version: '3'
+version: "3"
 
 vars:
-  MODULE: github.com/jimyag/sys-mcp
-  BIN_DIR: bin
+  GIT_TAG:
+    sh: git describe --tags --always --dirty="-dev"
+  GO_BIN: "{{.ROOT_DIR}}/bin"
+  GO_PATH:
+    sh: "go env GOPATH | awk -F: '{print $1}'"
+  BUILD_TIME:
+    sh: TZ='Asia/Shanghai' date "+%Y-%m-%d-%H-%M-%S"
+
+  LDFLAGS: "-s -w"
+
+includes:
+  build:
+    taskfile: ./hack/taskfile/build.yaml
+    flatten: true
+  lint:
+    taskfile: ./hack/taskfile/lint.yaml
+    flatten: true
+  deps:
+    taskfile: ./hack/taskfile/deps.yaml
+    flatten: true
+  test:
+    taskfile: ./hack/taskfile/test.yaml
+    flatten: true
 
 tasks:
   default:
+    desc: 列出所有任务
     cmds:
-      - task --list
+      - task --list-all
+    silent: true
 
   proto:
-    desc: Generate protobuf and gRPC code
+    desc: 从 proto 生成 gRPC 代码
     cmds:
       - mkdir -p api/tunnel
       - |
@@ -26,78 +49,7 @@ tasks:
     generates:
       - api/tunnel/*.go
 
-  build:agent:
-    desc: Build sys-mcp-agent
-    cmds:
-      - mkdir -p {{.BIN_DIR}}
-      - go build -o {{.BIN_DIR}}/sys-mcp-agent ./cmd/sys-mcp-agent
-    sources:
-      - cmd/sys-mcp-agent/**/*.go
-      - internal/sys-mcp-agent/**/*.go
-      - internal/pkg/**/*.go
-      - api/tunnel/**/*.go
-
-  build:proxy:
-    desc: Build sys-mcp-proxy
-    cmds:
-      - mkdir -p {{.BIN_DIR}}
-      - go build -o {{.BIN_DIR}}/sys-mcp-proxy ./cmd/sys-mcp-proxy
-    sources:
-      - cmd/sys-mcp-proxy/**/*.go
-      - internal/sys-mcp-proxy/**/*.go
-      - internal/pkg/**/*.go
-      - api/tunnel/**/*.go
-
-  build:center:
-    desc: Build sys-mcp-center
-    cmds:
-      - mkdir -p {{.BIN_DIR}}
-      - go build -o {{.BIN_DIR}}/sys-mcp-center ./cmd/sys-mcp-center
-    sources:
-      - cmd/sys-mcp-center/**/*.go
-      - internal/sys-mcp-center/**/*.go
-      - internal/pkg/**/*.go
-      - api/tunnel/**/*.go
-
-  build:client:
-    desc: Build sys-mcp-client
-    cmds:
-      - mkdir -p {{.BIN_DIR}}
-      - go build -o {{.BIN_DIR}}/sys-mcp-client ./cmd/sys-mcp-client
-    sources:
-      - cmd/sys-mcp-client/**/*.go
-      - internal/pkg/**/*.go
-
-  build:
-    desc: Build all binaries
-    deps: [build:agent, build:proxy, build:center, build:client]
-
-  test:
-    desc: Run all tests with race detector
-    cmds:
-      - go test -race -timeout 60s ./...
-
-  test:verbose:
-    desc: Run all tests verbose with race detector
-    cmds:
-      - go test -race -v -timeout 60s ./...
-
-  vet:
-    desc: Run go vet
-    cmds:
-      - go vet ./...
-
-  lint:
-    desc: Run golangci-lint (requires golangci-lint installed)
-    cmds:
-      - golangci-lint run ./...
-
   clean:
-    desc: Remove build artifacts
+    desc: 删除编译产物
     cmds:
-      - rm -rf {{.BIN_DIR}}
-
-  tidy:
-    desc: Tidy go modules
-    cmds:
-      - go mod tidy
+      - rm -rf {{.GO_BIN}}

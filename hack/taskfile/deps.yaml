@@ -1,0 +1,10 @@
+version: "3"
+
+output: "prefixed"
+
+tasks:
+  deps:
+    desc: 安装本地开发依赖 (gofumpt / staticcheck)
+    cmds:
+      - go install mvdan.cc/gofumpt@latest
+      - go install honnef.co/go/tools/cmd/staticcheck@latest
