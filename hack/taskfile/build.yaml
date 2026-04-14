@@ -4,11 +4,7 @@ output: "prefixed"
 
 tasks:
   build:
-    desc: "编译所有二进制 (可指定平台: GO_OS=linux GO_ARCH=arm64 task build)"
-    deps: [build:center, build:proxy, build:agent, build:client]
-
-  build:center:
-    desc: "编译 sys-mcp-center"
+    desc: "编译所有二进制到 bin/ (可指定平台: GO_OS=linux GO_ARCH=arm64 task build)"
     deps: [go-mod-tidy]
     vars:
       GO_OS: '{{.GO_OS | default OS}}'
@@ -20,67 +16,10 @@ tasks:
         CGO_ENABLED=0 GOOS={{.GO_OS}} GOARCH={{.GO_ARCH}} \
         GOMODCACHE={{.GO_PATH}}/pkg/mod \
         go build -trimpath -ldflags "{{.LDFLAGS}}" \
-          -o {{.OUT_DIR}}/sys-mcp-center ./cmd/sys-mcp-center
+          -o {{.OUT_DIR}}/ ./cmd/...
       - |
         if [ "{{.GO_OS}}" == "{{OS}}" ] && [ "{{.GO_ARCH}}" == "{{ARCH}}" ]; then
-          cp {{.OUT_DIR}}/sys-mcp-center {{.GO_BIN}}/sys-mcp-center
-        fi
-
-  build:proxy:
-    desc: "编译 sys-mcp-proxy"
-    deps: [go-mod-tidy]
-    vars:
-      GO_OS: '{{.GO_OS | default OS}}'
-      GO_ARCH: '{{.GO_ARCH | default ARCH}}'
-      OUT_DIR: '{{.GO_BIN}}/{{.GO_OS}}_{{.GO_ARCH}}'
-    cmds:
-      - mkdir -p {{.OUT_DIR}}
-      - |
-        CGO_ENABLED=0 GOOS={{.GO_OS}} GOARCH={{.GO_ARCH}} \
-        GOMODCACHE={{.GO_PATH}}/pkg/mod \
-        go build -trimpath -ldflags "{{.LDFLAGS}}" \
-          -o {{.OUT_DIR}}/sys-mcp-proxy ./cmd/sys-mcp-proxy
-      - |
-        if [ "{{.GO_OS}}" == "{{OS}}" ] && [ "{{.GO_ARCH}}" == "{{ARCH}}" ]; then
-          cp {{.OUT_DIR}}/sys-mcp-proxy {{.GO_BIN}}/sys-mcp-proxy
-        fi
-
-  build:agent:
-    desc: "编译 sys-mcp-agent"
-    deps: [go-mod-tidy]
-    vars:
-      GO_OS: '{{.GO_OS | default OS}}'
-      GO_ARCH: '{{.GO_ARCH | default ARCH}}'
-      OUT_DIR: '{{.GO_BIN}}/{{.GO_OS}}_{{.GO_ARCH}}'
-    cmds:
-      - mkdir -p {{.OUT_DIR}}
-      - |
-        CGO_ENABLED=0 GOOS={{.GO_OS}} GOARCH={{.GO_ARCH}} \
-        GOMODCACHE={{.GO_PATH}}/pkg/mod \
-        go build -trimpath -ldflags "{{.LDFLAGS}}" \
-          -o {{.OUT_DIR}}/sys-mcp-agent ./cmd/sys-mcp-agent
-      - |
-        if [ "{{.GO_OS}}" == "{{OS}}" ] && [ "{{.GO_ARCH}}" == "{{ARCH}}" ]; then
-          cp {{.OUT_DIR}}/sys-mcp-agent {{.GO_BIN}}/sys-mcp-agent
-        fi
-
-  build:client:
-    desc: "编译 sys-mcp-client"
-    deps: [go-mod-tidy]
-    vars:
-      GO_OS: '{{.GO_OS | default OS}}'
-      GO_ARCH: '{{.GO_ARCH | default ARCH}}'
-      OUT_DIR: '{{.GO_BIN}}/{{.GO_OS}}_{{.GO_ARCH}}'
-    cmds:
-      - mkdir -p {{.OUT_DIR}}
-      - |
-        CGO_ENABLED=0 GOOS={{.GO_OS}} GOARCH={{.GO_ARCH}} \
-        GOMODCACHE={{.GO_PATH}}/pkg/mod \
-        go build -trimpath -ldflags "{{.LDFLAGS}}" \
-          -o {{.OUT_DIR}}/sys-mcp-client ./cmd/sys-mcp-client
-      - |
-        if [ "{{.GO_OS}}" == "{{OS}}" ] && [ "{{.GO_ARCH}}" == "{{ARCH}}" ]; then
-          cp {{.OUT_DIR}}/sys-mcp-client {{.GO_BIN}}/sys-mcp-client
+          cp {{.OUT_DIR}}/sys-mcp-* {{.GO_BIN}}/
         fi
 
   go-mod-tidy:
