@@ -20,6 +20,8 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
+      - -X 'github.com/jimmicro/version.GitTag={{ .Tag }}'
+      - -X 'github.com/jimmicro/version.BuildTime={{ .Date }}'
 
   - id: sys-mcp-proxy
     binary: sys-mcp-proxy
@@ -36,6 +38,8 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
+      - -X 'github.com/jimmicro/version.GitTag={{ .Tag }}'
+      - -X 'github.com/jimmicro/version.BuildTime={{ .Date }}'
 
   - id: sys-mcp-agent
     binary: sys-mcp-agent
@@ -52,6 +56,8 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
+      - -X 'github.com/jimmicro/version.GitTag={{ .Tag }}'
+      - -X 'github.com/jimmicro/version.BuildTime={{ .Date }}'
 
 archives:
   - id: center

@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_ "github.com/jimmicro/version"
+
 	proxy "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy"
 )
 

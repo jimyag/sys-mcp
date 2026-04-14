@@ -11,6 +11,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "github.com/jimmicro/version"
+
 	client "github.com/jimyag/sys-mcp/internal/sys-mcp-client"
 )
 

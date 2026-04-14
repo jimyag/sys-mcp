@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_ "github.com/jimmicro/version"
+
 	center "github.com/jimyag/sys-mcp/internal/sys-mcp-center"
 )
 
