@@ -4,12 +4,14 @@ output: "prefixed"
 
 tasks:
   build:
-    desc: "编译所有二进制到 bin/ (可指定平台: GO_OS=linux GO_ARCH=amd64 task build)"
+    desc: "编译所有二进制到 bin/ (GOOS=linux GOARCH=amd64 task build)"
     deps: [go-mod-tidy]
     vars:
-      GO_OS: '{{.GO_OS | default OS}}'
-      GO_ARCH: '{{.GO_ARCH | default ARCH}}'
-      OUT_DIR: '{{.GO_BIN}}/{{.GO_OS}}_{{.GO_ARCH}}'
+      GO_OS:
+        sh: echo ${GOOS:-$(go env GOOS)}
+      GO_ARCH:
+        sh: echo ${GOARCH:-$(go env GOARCH)}
+      OUT_DIR: "{{.GO_BIN}}/{{.GO_OS}}_{{.GO_ARCH}}"
     cmds:
       - rm -rf {{.OUT_DIR}}
       - mkdir -p {{.OUT_DIR}}
@@ -18,7 +20,7 @@ tasks:
         GOMODCACHE={{.GO_PATH}}/pkg/mod \
         go build -trimpath -ldflags "{{.LDFLAGS}}" -o {{.OUT_DIR}}/ ./cmd/...
       - |
-        if [ "{{.GO_OS}}" == "{{OS}}" ] && [ "{{.GO_ARCH}}" == "{{ARCH}}" ]; then
+        if [ "{{.GO_OS}}" = "$(go env GOOS)" ] && [ "{{.GO_ARCH}}" = "$(go env GOARCH)" ]; then
           cp {{.OUT_DIR}}/sys-mcp-* {{.GO_BIN}}/
         fi
 
