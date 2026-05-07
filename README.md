@@ -267,14 +267,10 @@ protoc \
 
 | 文档 | 说明 |
 |------|------|
-| [docs/design/overview.md](docs/design/overview.md) | 整体架构详细设计 |
-| [docs/design/sys-mcp-agent.md](docs/design/sys-mcp-agent.md) | agent 详细设计 |
-| [docs/design/sys-mcp-center.md](docs/design/sys-mcp-center.md) | center 详细设计 |
-| [docs/design/sys-mcp-proxy.md](docs/design/sys-mcp-proxy.md) | proxy 详细设计 |
-| [docs/design/implementation-status.md](docs/design/implementation-status.md) | 设计与实现状态对照 |
-| [docs/usage/getting-started.md](docs/usage/getting-started.md) | 用户快速上手指南 |
+| [docs/design/sysplane-api-v1.md](docs/design/sysplane-api-v1.md) | HTTP API v1 完整接口定义 |
+| [docs/design/sysplane-security-model.md](docs/design/sysplane-security-model.md) | 安全模型：token 域、鉴权逻辑、运行时限制 |
+| [docs/usage/getting-started.md](docs/usage/getting-started.md) | 快速上手指南 |
 | [docs/testing/local-e2e-test.md](docs/testing/local-e2e-test.md) | 本地端到端测试流程 |
-| [docs/trouble/001-gitignore-binary-leak.md](docs/trouble/001-gitignore-binary-leak.md) | 故障记录：.gitignore 导致二进制泄露 |
 | [AGENTS.md](AGENTS.md) | coding agent 工作指南 |
 
 ---
