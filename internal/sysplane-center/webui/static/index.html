@@ -3,862 +3,1637 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sysplane Admin</title>
+  <title>Sysplane Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      color-scheme: dark;
-      --bg: #0b1220;
-      --panel: #111827;
-      --panel-2: #1f2937;
-      --line: #334155;
-      --text: #e5e7eb;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-      --ok: #22c55e;
-      --warn: #f59e0b;
-      --err: #ef4444;
+      --bg:        #04080f;
+      --s1:        #080f1e;
+      --s2:        #0c1830;
+      --s3:        #112040;
+      --border:    #1a3050;
+      --border-hi: #00c6e0;
+      --text:      #c8e0f8;
+      --muted:     #4a6888;
+      --dim:       #243650;
+      --accent:    #00c6e0;
+      --accent-lo: rgba(0,198,224,.12);
+      --ok:        #10e07a;
+      --ok-lo:     rgba(16,224,122,.12);
+      --warn:      #f5a623;
+      --warn-lo:   rgba(245,166,35,.12);
+      --err:       #ff4757;
+      --err-lo:    rgba(255,71,87,.12);
+      --purple:    #7c6bff;
+      --purple-lo: rgba(124,107,255,.12);
+      --f-ui:      'Plus Jakarta Sans', sans-serif;
+      --f-mono:    'JetBrains Mono', monospace;
+      --r1: 6px; --r2: 10px; --r3: 16px;
+      --t: .18s ease;
     }
-    * { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
     body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: linear-gradient(180deg, #020617 0%, var(--bg) 100%);
+      font-family: var(--f-ui);
+      background: var(--bg);
       color: var(--text);
-    }
-    header, main { max-width: 1440px; margin: 0 auto; padding: 20px 24px; }
-    h1, h2, h3 { margin: 0 0 12px; }
-    p { margin: 0; color: var(--muted); }
-    nav {
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-      flex-wrap: wrap;
-    }
-    .tab {
-      border: 1px solid var(--line);
-      background: transparent;
-      color: var(--text);
-      padding: 10px 14px;
-      border-radius: 999px;
-      cursor: pointer;
-    }
-    .tab.active {
-      background: rgba(56, 189, 248, 0.16);
-      border-color: var(--accent);
-    }
-    .auth, .grid, .stack {
-      display: grid;
-      gap: 16px;
-    }
-    .auth { grid-template-columns: 1.6fr auto auto; align-items: end; }
-    .grid { grid-template-columns: 320px 1fr; align-items: start; }
-    .stack { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-    .panel {
-      background: rgba(17, 24, 39, 0.92);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
-    }
-    .hidden { display: none; }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      color: var(--muted);
       font-size: 14px;
+      line-height: 1.5;
+      overflow: hidden;
     }
-    input, textarea, select, button {
-      width: 100%;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      background: var(--panel-2);
-      color: var(--text);
-      padding: 10px 12px;
-      font: inherit;
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,198,224,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,198,224,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
     }
-    textarea { min-height: 120px; resize: vertical; }
-    button {
-      cursor: pointer;
-      border: none;
-      background: #0ea5e9;
-      font-weight: 600;
+
+    /* ── Shell ── */
+    .shell { display: flex; height: 100vh; position: relative; z-index: 1; }
+
+    /* ── Sidebar ── */
+    aside {
+      width: 220px; flex-shrink: 0;
+      background: var(--s1);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 0;
     }
-    button.secondary {
-      background: var(--panel-2);
-      border: 1px solid var(--line);
+    .logo {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
     }
-    button.warn { background: #b45309; }
-    .row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .row > * { flex: 1; min-width: 120px; }
-    .list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 560px;
-      overflow: auto;
-    }
-    .list button {
-      text-align: left;
-      background: transparent;
-      border: 1px solid var(--line);
-      padding: 12px;
-    }
-    .list button.active {
-      border-color: var(--accent);
-      box-shadow: inset 0 0 0 1px var(--accent);
-    }
-    .badge {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 12px;
-      margin-left: 8px;
-      background: rgba(56, 189, 248, 0.15);
+    .logo-mark {
+      font-family: var(--f-mono);
+      font-size: 11px;
       color: var(--accent);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
     }
-    .status { margin-top: 12px; font-size: 14px; }
-    .status.ok { color: var(--ok); }
-    .status.warn { color: var(--warn); }
-    .status.err { color: var(--err); }
-    .hint {
+    .logo-name {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      color: var(--text);
+    }
+
+    nav { padding: 12px 10px; flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 9px 12px;
+      border-radius: var(--r1);
+      border: none; background: none;
+      color: var(--muted); font: 500 13px var(--f-ui);
+      cursor: pointer; text-align: left;
+      transition: color var(--t), background var(--t);
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { color: var(--text); background: var(--s2); }
+    .nav-item.active { color: var(--accent); background: var(--accent-lo); }
+    .nav-icon { width: 16px; height: 16px; opacity: .7; flex-shrink: 0; }
+    .nav-item.active .nav-icon { opacity: 1; }
+
+    .token-section {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .token-label {
+      font: 500 11px var(--f-mono);
       color: var(--muted);
-      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .token-row { display: flex; gap: 6px; }
+    .token-input {
+      flex: 1; min-width: 0;
+      background: var(--s2);
+      border: 1px solid var(--border);
+      border-radius: var(--r1);
+      color: var(--text);
+      font: 400 12px var(--f-mono);
+      padding: 7px 10px;
+      transition: border-color var(--t);
+      outline: none;
+    }
+    .token-input:focus { border-color: var(--accent); }
+    .btn-icon {
+      width: 32px; height: 32px; flex-shrink: 0;
+      background: var(--s2); border: 1px solid var(--border);
+      border-radius: var(--r1); color: var(--muted);
+      cursor: pointer; font-size: 14px;
+      display: grid; place-items: center;
+      transition: color var(--t), border-color var(--t);
+    }
+    .btn-icon:hover { color: var(--text); border-color: var(--dim); }
+    .status-bar {
       margin-top: 8px;
+      font: 400 11px var(--f-mono);
+      color: var(--muted);
+      min-height: 14px;
     }
-    pre {
-      margin: 0;
-      padding: 14px;
-      overflow: auto;
-      border-radius: 12px;
-      background: #020617;
-      border: 1px solid #1e293b;
-      font-size: 13px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-      word-break: break-word;
+    .status-bar.ok   { color: var(--ok); }
+    .status-bar.err  { color: var(--err); }
+    .status-bar.warn { color: var(--warn); }
+
+    /* ── Content ── */
+    .content { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+    .top-bar {
+      height: 48px; flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 24px; gap: 8px;
+      background: var(--s1);
     }
-    .toolbar {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    .top-bar-title {
+      font: 600 13px var(--f-ui);
+      color: var(--text);
+      letter-spacing: .02em;
     }
-    @media (max-width: 960px) {
-      header, main { padding: 16px; }
-      .auth, .grid { grid-template-columns: 1fr; }
+    .top-bar-sep { flex: 1; }
+    .btn-sm {
+      height: 28px; padding: 0 12px;
+      background: var(--s2); border: 1px solid var(--border);
+      border-radius: var(--r1); color: var(--text);
+      font: 500 12px var(--f-ui); cursor: pointer;
+      transition: border-color var(--t), color var(--t);
     }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm.primary { background: var(--accent-lo); border-color: var(--accent); color: var(--accent); }
+    .btn-sm.danger  { background: var(--err-lo); border-color: var(--err); color: var(--err); }
+
+    .tab-pane { display: none; height: calc(100vh - 48px); overflow: hidden; }
+    .tab-pane.active { display: flex; }
+
+    /* ── Split layout ── */
+    .split { display: flex; height: 100%; overflow: hidden; }
+    .split-left {
+      width: 280px; flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      background: var(--s1);
+    }
+    .split-right { flex: 1; overflow-y: auto; padding: 20px; }
+
+    .pane-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pane-title { font: 600 13px var(--f-ui); color: var(--text); }
+    .pane-count {
+      font: 400 11px var(--f-mono);
+      color: var(--muted);
+      background: var(--s2);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 1px 7px;
+    }
+    .pane-tools { margin-left: auto; display: flex; gap: 6px; }
+
+    .filter-bar { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .filter-row { display: flex; gap: 6px; }
+    .input-sm {
+      flex: 1; min-width: 0;
+      background: var(--s2); border: 1px solid var(--border);
+      border-radius: var(--r1); color: var(--text);
+      font: 400 12px var(--f-ui); padding: 6px 8px;
+      outline: none; transition: border-color var(--t);
+    }
+    .input-sm:focus { border-color: var(--accent); }
+    select.input-sm { cursor: pointer; }
+
+    .item-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .list-item {
+      padding: 10px 12px; border-radius: var(--r1);
+      border: 1px solid transparent;
+      cursor: pointer; margin-bottom: 4px;
+      transition: background var(--t), border-color var(--t);
+    }
+    .list-item:hover { background: var(--s2); }
+    .list-item.active { background: var(--accent-lo); border-color: var(--accent); }
+    .list-item-name { font: 500 13px var(--f-ui); color: var(--text); margin-bottom: 3px; }
+    .list-item-sub  { font: 400 11px var(--f-mono); color: var(--muted); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      font: 500 10px var(--f-mono);
+      letter-spacing: .05em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 99px;
+      border: 1px solid currentColor;
+    }
+    .badge-online  { color: var(--ok);   background: var(--ok-lo);     }
+    .badge-offline { color: var(--muted); background: var(--s2);        }
+    .badge-pending { color: var(--warn);  background: var(--warn-lo);   }
+    .badge-running { color: var(--accent);background: var(--accent-lo); }
+    .badge-succeeded { color: var(--ok); background: var(--ok-lo);      }
+    .badge-failed  { color: var(--err);  background: var(--err-lo);     }
+    .badge-canceled { color: var(--muted);background: var(--s2);        }
+    .badge-partial { color: var(--warn); background: var(--warn-lo);    }
+    .badge-readonly  { color: var(--ok);   background: var(--ok-lo);    }
+    .badge-mutating  { color: var(--warn); background: var(--warn-lo);  }
+    .badge-dangerous { color: var(--err);  background: var(--err-lo);   }
+    .badge-builtin   { color: var(--accent);background: var(--accent-lo);}
+    .badge-template  { color: var(--purple);background: var(--purple-lo);}
+
+    /* online pulse dot */
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      display: inline-block; margin-right: 5px;
+      flex-shrink: 0;
+    }
+    .dot-online  { background: var(--ok);   box-shadow: 0 0 0 2px var(--ok-lo); animation: pulse 2s infinite; }
+    .dot-offline { background: var(--muted); }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 2px var(--ok-lo); }
+      50%      { box-shadow: 0 0 0 5px transparent; }
+    }
+
+    /* ── Cards & panels ── */
+    .card {
+      background: var(--s1);
+      border: 1px solid var(--border);
+      border-radius: var(--r2);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card-title { font: 600 12px var(--f-ui); color: var(--text); text-transform: uppercase; letter-spacing: .06em; }
+    .card-body  { padding: 16px; }
+
+    /* ── Metric cards row ── */
+    .metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .metric {
+      background: var(--s2); border: 1px solid var(--border);
+      border-radius: var(--r2); padding: 14px 16px;
+    }
+    .metric-label { font: 500 10px var(--f-mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+    .metric-value { font: 500 16px var(--f-mono); color: var(--text); word-break: break-all; }
+    .metric-value.accent { color: var(--accent); }
+    .metric-value.ok { color: var(--ok); }
+
+    /* ── Progress bar ── */
+    .prog-wrap { margin-bottom: 10px; }
+    .prog-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .prog-label { font: 400 11px var(--f-mono); color: var(--muted); }
+    .prog-val   { font: 500 11px var(--f-mono); color: var(--text); }
+    .prog-track { height: 5px; background: var(--s3); border-radius: 99px; overflow: hidden; }
+    .prog-fill  { height: 100%; border-radius: 99px; transition: width .4s ease; }
+    .prog-fill.ok   { background: var(--ok); }
+    .prog-fill.warn { background: var(--warn); }
+    .prog-fill.err  { background: var(--err); }
+    .prog-fill.accent { background: var(--accent); }
+
+    /* ── Data table ── */
+    .data-table { width: 100%; border-collapse: collapse; font: 400 12px var(--f-mono); }
+    .data-table th {
+      text-align: left; padding: 7px 10px;
+      font: 600 10px var(--f-ui);
+      color: var(--muted); letter-spacing: .06em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td { padding: 8px 10px; border-bottom: 1px solid var(--s3); color: var(--text); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--s2); }
+    .cell-muted { color: var(--muted); }
+    .cell-ok    { color: var(--ok); }
+    .cell-warn  { color: var(--warn); }
+    .cell-err   { color: var(--err); }
+    .cell-accent { color: var(--accent); }
+
+    /* ── KV table ── */
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 0; }
+    .kv-row { display: contents; }
+    .kv-key, .kv-val {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--s3);
+      font: 400 12px var(--f-mono);
+    }
+    .kv-key { color: var(--muted); }
+    .kv-val { color: var(--text); word-break: break-all; }
+
+    /* ── Code viewer ── */
+    .code-viewer { position: relative; }
+    .code-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px;
+      background: var(--s2); border-bottom: 1px solid var(--border);
+      font: 400 11px var(--f-mono); color: var(--muted);
+    }
+    .code-path { color: var(--accent); }
+    .code-size { margin-left: auto; }
+    .code-body {
+      display: flex; overflow-x: auto; max-height: 400px; overflow-y: auto;
+    }
+    .code-lines {
+      padding: 12px 10px; text-align: right; user-select: none;
+      font: 400 12px var(--f-mono); color: var(--dim);
+      background: var(--s2); border-right: 1px solid var(--border);
+      min-width: 42px;
+      line-height: 1.7;
+    }
+    .code-content {
+      padding: 12px 16px; flex: 1;
+      font: 400 12px var(--f-mono); color: var(--text);
+      white-space: pre; line-height: 1.7;
+    }
+
+    /* ── File list ── */
+    .file-icon { font-size: 13px; margin-right: 6px; }
+    .file-dir  { color: var(--accent); }
+    .file-link { color: var(--purple); }
+    .file-exec { color: var(--ok); }
+
+    /* ── Caps grid ── */
+    .caps-section { margin-bottom: 20px; }
+    .caps-group-label {
+      font: 600 10px var(--f-mono);
+      letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px;
+    }
+    .caps-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+    .cap-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: var(--r1);
+      border: 1px solid var(--border);
+      font: 400 12px var(--f-mono); color: var(--text);
+      background: var(--s2);
+    }
+    .cap-chip.disabled { opacity: .4; }
+    .cap-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .cap-dot.readonly  { background: var(--ok); }
+    .cap-dot.mutating  { background: var(--warn); }
+    .cap-dot.dangerous { background: var(--err); }
+
+    /* ── Node detail header ── */
+    .node-hero {
+      background: linear-gradient(135deg, var(--s2) 0%, var(--s1) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--r2);
+      padding: 20px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .node-hero::before {
+      content: '';
+      position: absolute; right: -40px; top: -40px;
+      width: 160px; height: 160px; border-radius: 50%;
+      background: var(--accent-lo);
+      pointer-events: none;
+    }
+    .node-hero-hostname {
+      font: 700 22px var(--f-mono);
+      color: var(--text); margin-bottom: 8px;
+    }
+    .node-hero-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .node-hero-meta { font: 400 12px var(--f-mono); color: var(--muted); }
+
+    /* ── Result section ── */
+    .result-placeholder {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 180px; color: var(--dim);
+    }
+    .result-placeholder-icon { font-size: 32px; margin-bottom: 10px; opacity: .5; }
+    .result-placeholder-text { font: 400 12px var(--f-mono); }
+
+    /* ── Write result ── */
+    .write-ok {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px; background: var(--ok-lo);
+      border: 1px solid var(--ok); border-radius: var(--r2);
+      color: var(--ok); font: 500 13px var(--f-mono);
+    }
+    .write-icon { font-size: 20px; }
+
+    /* ── Invocation result cards ── */
+    .inv-result-card {
+      background: var(--s1); border: 1px solid var(--border);
+      border-radius: var(--r2); margin-bottom: 14px; overflow: hidden;
+    }
+    .inv-result-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+    }
+    .inv-result-node { font: 600 13px var(--f-mono); color: var(--text); }
+    .inv-result-timing { margin-left: auto; font: 400 11px var(--f-mono); color: var(--muted); }
+    .inv-result-body { padding: 14px; }
+    .inv-error { font: 400 12px var(--f-mono); color: var(--err); }
+
+    /* ── Template / invocation form ── */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-label { font: 600 10px var(--f-mono); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+    .form-input, .form-select, .form-textarea {
+      background: var(--s2); border: 1px solid var(--border);
+      border-radius: var(--r1); color: var(--text);
+      font: 400 12px var(--f-mono); padding: 7px 10px;
+      outline: none; transition: border-color var(--t);
+      width: 100%;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+    .form-textarea { min-height: 80px; resize: vertical; }
+    .form-select { cursor: pointer; }
+    .form-actions { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+    .btn {
+      height: 34px; padding: 0 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--r1);
+      font: 600 12px var(--f-ui);
+      cursor: pointer; transition: all var(--t);
+    }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #000; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-secondary { background: var(--s2); border-color: var(--border); color: var(--text); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: var(--err-lo); border-color: var(--err); color: var(--err); }
+    .btn-danger:hover { background: var(--err); color: #fff; }
+
+    /* ── Audit ── */
+    .audit-hero {
+      background: var(--s1); border: 1px solid var(--border);
+      border-radius: var(--r2); padding: 20px;
+    }
+    .audit-kv { font: 400 12px var(--f-mono); }
+    .audit-targets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .audit-target {
+      font: 400 11px var(--f-mono); color: var(--accent);
+      background: var(--accent-lo); border: 1px solid var(--border);
+      border-radius: var(--r1); padding: 2px 8px;
+    }
+
+    /* ── Action toolbar ── */
+    .action-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .action-btn {
+      display: flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 12px;
+      background: var(--s2); border: 1px solid var(--border);
+      border-radius: var(--r1); color: var(--muted);
+      font: 500 12px var(--f-mono); cursor: pointer;
+      transition: all var(--t);
+    }
+    .action-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lo); }
+    .action-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-lo); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--s3); border-radius: 99px; }
+
+    /* ── Misc ── */
+    .empty-hint { font: 400 12px var(--f-mono); color: var(--dim); padding: 20px; text-align: center; }
+    .section-sep { height: 1px; background: var(--border); margin: 16px 0; }
+    .tag { display: inline-block; font: 400 11px var(--f-mono); color: var(--muted); background: var(--s2); border: 1px solid var(--border); border-radius: var(--r1); padding: 1px 7px; margin: 2px; }
+    .flex { display: flex; }
+    .gap-8 { gap: 8px; }
+    .items-center { align-items: center; }
+    .ml-auto { margin-left: auto; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mb-8  { margin-bottom: 8px; }
+    .w-full { width: 100%; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Sysplane Admin</h1>
-    <p>完整的 v1 管理后台入口：节点浏览、命令模板、Invocation 执行中心、审计查询都直接复用 `sysplane-center` 的 `/v1/...` API。</p>
+<div class="shell">
+
+  <!-- ── Sidebar ── -->
+  <aside>
+    <div class="logo">
+      <div class="logo-mark">▸ SYS</div>
+      <div class="logo-name">Sysplane</div>
+    </div>
+
     <nav>
-      <button class="tab active" data-tab="nodes">节点</button>
-      <button class="tab" data-tab="templates">命令模板</button>
-      <button class="tab" data-tab="invocations">执行中心</button>
-      <button class="tab" data-tab="audit">审计</button>
+      <button class="nav-item active" data-tab="nodes">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="3" width="14" height="10" rx="1.5"/>
+          <path d="M4 7h8M4 9.5h5"/>
+        </svg>
+        节点
+      </button>
+      <button class="nav-item" data-tab="templates">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 4h10M3 8h7M3 12h5"/>
+        </svg>
+        命令模板
+      </button>
+      <button class="nav-item" data-tab="invocations">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="6"/>
+          <path d="M8 5v3l2 2"/>
+        </svg>
+        执行中心
+      </button>
+      <button class="nav-item" data-tab="audit">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 4.5h12M2 8h9M2 11.5h6"/>
+          <circle cx="13" cy="11.5" r="2"/>
+          <path d="M14.5 13l1 1"/>
+        </svg>
+        审计
+      </button>
     </nav>
-  </header>
 
-  <main class="stack">
-    <section class="panel">
-      <div class="auth">
-        <div>
-          <label for="token">Bearer Token</label>
-          <input id="token" type="password" placeholder="粘贴 client / admin token" />
-        </div>
-        <button id="save-token">保存并刷新</button>
-        <button id="clear-token" class="secondary">清空</button>
+    <div class="token-section">
+      <div class="token-label">Bearer Token</div>
+      <div class="token-row">
+        <input id="token-input" class="token-input" type="password" placeholder="粘贴 token…" />
+        <button class="btn-icon" id="btn-save-token" title="保存并刷新">↵</button>
+        <button class="btn-icon" id="btn-clear-token" title="清空">✕</button>
       </div>
-      <div id="auth-status" class="status warn">尚未加载数据。</div>
-      <div class="hint">需要 `admin token` 才能创建或修改模板、查看审计；`client token` 可查看节点和执行只读动作。</div>
-    </section>
+      <div id="status-bar" class="status-bar warn">尚未加载</div>
+    </div>
+  </aside>
 
-    <section id="tab-nodes" class="grid">
-      <div class="panel">
-        <h2>节点</h2>
-        <div class="row">
-          <input id="node-filter-hostname" placeholder="hostname 过滤" />
-          <select id="node-filter-status">
-            <option value="">全部状态</option>
-            <option value="online">online</option>
-            <option value="offline">offline</option>
-          </select>
-        </div>
-        <div class="row" style="margin-top: 12px;">
-          <button id="refresh-nodes">刷新节点</button>
-        </div>
-        <div id="nodes" class="list" style="margin-top: 12px;"></div>
-      </div>
+  <!-- ── Content ── -->
+  <div class="content">
 
-      <div class="stack">
-        <div class="panel">
-          <h2>节点详情</h2>
-          <pre id="node-detail">请先选择节点。</pre>
-          <h3 style="margin-top: 16px;">能力</h3>
-          <pre id="capabilities">请先选择节点。</pre>
-        </div>
-
-        <div class="panel">
-          <h2>快捷动作</h2>
-          <div class="toolbar">
-            <button data-node-action="sys:info">sys:info</button>
-            <button data-node-action="sys:hardware">sys:hardware</button>
-            <button data-node-action="fs:list">fs:list</button>
-            <button data-node-action="fs:read">fs:read</button>
-            <button data-node-action="fs:stat">fs:stat</button>
-            <button data-node-action="fs:write">fs:write</button>
-          </div>
-          <div class="row" style="margin-top: 16px;">
-            <div>
-              <label for="node-path">path</label>
-              <input id="node-path" value="/etc/hostname" />
-            </div>
-            <div>
-              <label for="node-limit">limit / length</label>
-              <input id="node-limit" type="number" value="20" min="1" />
+    <!-- ── Nodes tab ── -->
+    <div class="tab-pane active" id="pane-nodes">
+      <div class="split">
+        <div class="split-left">
+          <div class="pane-header">
+            <span class="pane-title">节点</span>
+            <span class="pane-count" id="nodes-count">0</span>
+            <div class="pane-tools">
+              <button class="btn-sm" id="btn-refresh-nodes">刷新</button>
             </div>
           </div>
-          <div style="margin-top: 12px;">
-            <label for="node-content">content（仅 fs:write）</label>
-            <textarea id="node-content">hello from sysplane</textarea>
-          </div>
-          <h3 style="margin-top: 16px;">结果</h3>
-          <pre id="node-action-result">请先执行一个动作。</pre>
-        </div>
-      </div>
-    </section>
-
-    <section id="tab-templates" class="grid hidden">
-      <div class="panel">
-        <h2>命令模板</h2>
-        <div class="row">
-          <input id="template-filter-name" placeholder="名称过滤" />
-          <select id="template-filter-risk">
-            <option value="">全部风险级别</option>
-            <option value="readonly">readonly</option>
-            <option value="mutating">mutating</option>
-            <option value="dangerous">dangerous</option>
-          </select>
-        </div>
-        <div class="row" style="margin-top: 12px;">
-          <button id="refresh-templates">刷新模板</button>
-        </div>
-        <div id="templates" class="list" style="margin-top: 12px;"></div>
-      </div>
-
-      <div class="stack">
-        <div class="panel">
-          <h2>模板详情</h2>
-          <pre id="template-detail">请先选择模板。</pre>
-        </div>
-
-        <div class="panel">
-          <h2>创建 / 更新模板</h2>
-          <div class="row">
-            <div>
-              <label for="tpl-name">name</label>
-              <input id="tpl-name" placeholder="docker.ps" />
+          <div class="filter-bar">
+            <div class="filter-row">
+              <input class="input-sm" id="node-filter-hostname" placeholder="hostname 过滤…" />
+              <select class="input-sm" id="node-filter-status" style="width:90px;flex:none">
+                <option value="">全部</option>
+                <option value="online">online</option>
+                <option value="offline">offline</option>
+              </select>
             </div>
-            <div>
-              <label for="tpl-risk">risk_level</label>
-              <select id="tpl-risk">
+          </div>
+          <div class="item-list" id="nodes-list"></div>
+        </div>
+
+        <div class="split-right" id="nodes-right">
+          <div class="result-placeholder">
+            <div class="result-placeholder-icon">⬡</div>
+            <div class="result-placeholder-text">从左侧选择节点</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Templates tab ── -->
+    <div class="tab-pane" id="pane-templates">
+      <div class="split">
+        <div class="split-left">
+          <div class="pane-header">
+            <span class="pane-title">模板</span>
+            <span class="pane-count" id="templates-count">0</span>
+            <div class="pane-tools">
+              <button class="btn-sm" id="btn-refresh-templates">刷新</button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-row">
+              <input class="input-sm" id="template-filter-name" placeholder="名称过滤…" />
+              <select class="input-sm" id="template-filter-risk" style="width:100px;flex:none">
+                <option value="">全部</option>
                 <option value="readonly">readonly</option>
                 <option value="mutating">mutating</option>
                 <option value="dangerous">dangerous</option>
               </select>
             </div>
-            <div>
-              <label for="tpl-enabled">enabled（仅更新）</label>
-              <select id="tpl-enabled">
-                <option value="">保持不变</option>
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
-            </div>
           </div>
-          <div style="margin-top: 12px;">
-            <label for="tpl-description">description</label>
-            <textarea id="tpl-description"></textarea>
-          </div>
-          <div class="row" style="margin-top: 12px;">
-            <div>
-              <label for="tpl-target-os">target_os（逗号分隔）</label>
-              <input id="tpl-target-os" value="linux" />
-            </div>
-            <div>
-              <label for="tpl-command">executor.command</label>
-              <input id="tpl-command" value="/bin/echo" />
-            </div>
-          </div>
-          <div style="margin-top: 12px;">
-            <label for="tpl-args">executor.args（JSON 数组）</label>
-            <textarea id="tpl-args">["hello"]</textarea>
-          </div>
-          <div style="margin-top: 12px;">
-            <label for="tpl-schema">params_schema（JSON）</label>
-            <textarea id="tpl-schema">{"type":"object","properties":{},"additionalProperties":false}</textarea>
-          </div>
-          <div class="row" style="margin-top: 12px;">
-            <div>
-              <label for="tpl-default-timeout">default_timeout_sec</label>
-              <input id="tpl-default-timeout" type="number" value="10" min="1" />
-            </div>
-            <div>
-              <label for="tpl-max-timeout">max_timeout_sec</label>
-              <input id="tpl-max-timeout" type="number" value="30" min="1" />
-            </div>
-            <div>
-              <label for="tpl-max-output">max_output_bytes</label>
-              <input id="tpl-max-output" type="number" value="262144" min="1" />
-            </div>
-          </div>
-          <div class="row" style="margin-top: 12px;">
-            <button id="create-template">创建模板</button>
-            <button id="update-template" class="secondary">更新当前模板</button>
-          </div>
+          <div class="item-list" id="templates-list"></div>
         </div>
 
-        <div class="panel">
-          <h2>调用模板</h2>
-          <div class="row">
-            <div>
-              <label for="tpl-invoke-nodes">target node_ids（逗号分隔）</label>
-              <input id="tpl-invoke-nodes" placeholder="node-01,node-02" />
-            </div>
-            <div>
-              <label for="tpl-invoke-timeout">timeout_sec</label>
-              <input id="tpl-invoke-timeout" type="number" value="10" min="1" />
-            </div>
-            <div>
-              <label for="tpl-invoke-async">async</label>
-              <select id="tpl-invoke-async">
-                <option value="false">false</option>
-                <option value="true">true</option>
-              </select>
+        <div class="split-right">
+          <div class="card">
+            <div class="card-header"><span class="card-title">创建模板</span></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Name</label>
+                  <input class="form-input" id="tpl-name" placeholder="docker.ps" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Risk Level</label>
+                  <select class="form-select" id="tpl-risk">
+                    <option value="readonly">readonly</option>
+                    <option value="mutating">mutating</option>
+                    <option value="dangerous">dangerous</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Target OS（逗号分隔）</label>
+                  <input class="form-input" id="tpl-target-os" value="linux" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">executor.command</label>
+                  <input class="form-input" id="tpl-command" value="/bin/echo" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">default_timeout_sec</label>
+                  <input class="form-input" id="tpl-default-timeout" type="number" value="10" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">max_timeout_sec</label>
+                  <input class="form-input" id="tpl-max-timeout" type="number" value="30" />
+                </div>
+              </div>
+              <div class="form-group mt-12">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="tpl-description"></textarea>
+              </div>
+              <div class="form-group mt-12">
+                <label class="form-label">executor.args（JSON 数组）</label>
+                <textarea class="form-textarea" id="tpl-args">["hello"]</textarea>
+              </div>
+              <div class="form-group mt-12">
+                <label class="form-label">params_schema（JSON）</label>
+                <textarea class="form-textarea" id="tpl-schema">{"type":"object","properties":{},"additionalProperties":false}</textarea>
+              </div>
+              <div class="form-actions mt-12">
+                <button class="btn btn-primary" id="btn-create-template">创建模板</button>
+                <button class="btn btn-secondary" id="btn-update-template">更新选中模板</button>
+              </div>
             </div>
           </div>
-          <div style="margin-top: 12px;">
-            <label for="tpl-invoke-params">params（JSON）</label>
-            <textarea id="tpl-invoke-params">{}</textarea>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">调用选中模板</span></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Target Node IDs（逗号分隔）</label>
+                  <input class="form-input" id="tpl-invoke-nodes" placeholder="node-01,node-02" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Timeout (sec)</label>
+                  <input class="form-input" id="tpl-invoke-timeout" type="number" value="10" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Async</label>
+                  <select class="form-select" id="tpl-invoke-async">
+                    <option value="false">false</option>
+                    <option value="true">true</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group mt-12">
+                <label class="form-label">Params（JSON）</label>
+                <textarea class="form-textarea" id="tpl-invoke-params">{}</textarea>
+              </div>
+              <div class="form-actions mt-12">
+                <button class="btn btn-primary" id="btn-invoke-template">执行</button>
+              </div>
+              <div id="tpl-invoke-result" class="mt-16"></div>
+            </div>
           </div>
-          <div class="row" style="margin-top: 12px;">
-            <button id="invoke-template">调用当前模板</button>
-          </div>
-          <h3 style="margin-top: 16px;">结果</h3>
-          <pre id="template-invoke-result">请先选择模板并调用。</pre>
+
+          <div id="template-detail-card"></div>
         </div>
       </div>
-    </section>
+    </div>
 
-    <section id="tab-invocations" class="grid hidden">
-      <div class="panel">
-        <h2>Invocation 列表</h2>
-        <div class="row">
-          <select id="inv-filter-status">
-            <option value="">全部状态</option>
-            <option value="pending">pending</option>
-            <option value="running">running</option>
-            <option value="succeeded">succeeded</option>
-            <option value="failed">failed</option>
-            <option value="partial">partial</option>
-            <option value="canceled">canceled</option>
+    <!-- ── Invocations tab ── -->
+    <div class="tab-pane" id="pane-invocations">
+      <div class="split">
+        <div class="split-left">
+          <div class="pane-header">
+            <span class="pane-title">执行记录</span>
+            <span class="pane-count" id="inv-count">0</span>
+            <div class="pane-tools">
+              <button class="btn-sm" id="btn-refresh-invocations">刷新</button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-row">
+              <input class="input-sm" id="inv-filter-action" placeholder="action 过滤…" />
+              <select class="input-sm" id="inv-filter-status" style="width:100px;flex:none">
+                <option value="">全部</option>
+                <option value="pending">pending</option>
+                <option value="running">running</option>
+                <option value="succeeded">succeeded</option>
+                <option value="failed">failed</option>
+                <option value="partial">partial</option>
+                <option value="canceled">canceled</option>
+              </select>
+            </div>
+          </div>
+          <div class="item-list" id="invocations-list"></div>
+        </div>
+
+        <div class="split-right">
+          <div class="card">
+            <div class="card-header"><span class="card-title">新建 Invocation</span></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Action Type</label>
+                  <select class="form-select" id="inv-action-type">
+                    <option value="builtin">builtin</option>
+                    <option value="command_template">command_template</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Action</label>
+                  <input class="form-input" id="inv-action" value="fs.read" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Node IDs（逗号分隔）</label>
+                  <input class="form-input" id="inv-node-ids" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Timeout (sec)</label>
+                  <input class="form-input" id="inv-timeout" type="number" value="10" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Async</label>
+                  <select class="form-select" id="inv-async">
+                    <option value="false">false</option>
+                    <option value="true">true</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group mt-12">
+                <label class="form-label">Params（JSON）</label>
+                <textarea class="form-textarea" id="inv-params">{"path":"/etc/hostname"}</textarea>
+              </div>
+              <div class="form-actions mt-12">
+                <button class="btn btn-primary" id="btn-create-invocation">创建</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="invocation-detail-area">
+            <div class="result-placeholder">
+              <div class="result-placeholder-icon">◎</div>
+              <div class="result-placeholder-text">从左侧选择执行记录</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Audit tab ── -->
+    <div class="tab-pane" id="pane-audit">
+      <div class="split">
+        <div class="split-left">
+          <div class="pane-header">
+            <span class="pane-title">审计事件</span>
+            <span class="pane-count" id="audit-count">0</span>
+            <div class="pane-tools">
+              <button class="btn-sm" id="btn-refresh-audit">刷新</button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-row">
+              <input class="input-sm" id="audit-filter-action" placeholder="action 过滤…" />
+              <select class="input-sm" id="audit-filter-decision" style="width:100px;flex:none">
+                <option value="">全部</option>
+                <option value="accepted">accepted</option>
+                <option value="succeeded">succeeded</option>
+                <option value="failed">failed</option>
+                <option value="partial">partial</option>
+                <option value="canceled">canceled</option>
+                <option value="created">created</option>
+                <option value="updated">updated</option>
+              </select>
+            </div>
+          </div>
+          <div class="item-list" id="audit-list"></div>
+        </div>
+        <div class="split-right" id="audit-detail-area">
+          <div class="result-placeholder">
+            <div class="result-placeholder-icon">⊞</div>
+            <div class="result-placeholder-text">从左侧选择审计事件</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .content -->
+</div><!-- .shell -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const S = {
+  tab: 'nodes',
+  selectedNode: '', selectedTemplate: '', selectedInvocation: '', selectedAudit: '',
+  nodes: [], templates: [], invocations: [], audits: [],
+  lastAction: '',
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
+
+function token() { return $('token-input').value.trim(); }
+function setStatus(kind, msg) {
+  const b = $('status-bar');
+  b.className = 'status-bar ' + kind;
+  b.textContent = msg;
+}
+
+function fmtBytes(b) {
+  if (!b) return '0 B';
+  const u = ['B','KB','MB','GB','TB'];
+  let i = 0; let n = +b;
+  while (n >= 1024 && i < u.length-1) { n /= 1024; i++; }
+  return n.toFixed(i>0?1:0) + ' ' + u[i];
+}
+function fmtUptime(sec) {
+  if (!sec) return '—';
+  const d = Math.floor(sec/86400), h = Math.floor((sec%86400)/3600), m = Math.floor((sec%3600)/60);
+  const parts = [];
+  if (d) parts.push(d+'d');
+  if (h) parts.push(h+'h');
+  parts.push(m+'m');
+  return parts.join(' ');
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleString('zh-CN', {hour12:false}); } catch { return iso; }
+}
+function progColor(pct) {
+  if (pct > 85) return 'err';
+  if (pct > 65) return 'warn';
+  return 'ok';
+}
+function badge(text, cls) {
+  return `<span class="badge badge-${cls||text}">${text}</span>`;
+}
+function dot(status) {
+  return `<span class="dot dot-${status}"></span>`;
+}
+function splitCSV(v) { return v.split(',').map(s=>s.trim()).filter(Boolean); }
+
+async function api(path, opts={}) {
+  const headers = new Headers(opts.headers || {});
+  headers.set('Content-Type','application/json');
+  if (token()) headers.set('Authorization','Bearer '+token());
+  const res = await fetch(path, {...opts, headers});
+  const text = await res.text();
+  let body = {};
+  try { body = text ? JSON.parse(text) : {}; } catch { body = {raw:text}; }
+  if (!res.ok) throw new Error(body?.error?.message || `HTTP ${res.status}`);
+  return body;
+}
+
+// ── Tab routing ────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+function switchTab(tab) {
+  S.tab = tab;
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id==='pane-'+tab));
+  refreshTab(tab);
+}
+
+async function refreshTab(tab) {
+  setStatus('warn','正在加载…');
+  try {
+    if (tab==='nodes') await loadNodes();
+    if (tab==='templates') await loadTemplates();
+    if (tab==='invocations') await loadInvocations();
+    if (tab==='audit') await loadAuditEvents();
+    setStatus('ok','已刷新');
+  } catch(e) { setStatus('err', e.message); }
+}
+
+// ── Token ──────────────────────────────────────────────────────────────────
+const savedToken = localStorage.getItem('sysplane.token');
+if (savedToken) $('token-input').value = savedToken;
+
+$('btn-save-token').addEventListener('click', async () => {
+  localStorage.setItem('sysplane.token', token());
+  await refreshTab(S.tab);
+});
+$('btn-clear-token').addEventListener('click', () => {
+  localStorage.removeItem('sysplane.token');
+  $('token-input').value = '';
+  setStatus('warn','Token 已清空');
+});
+
+// ── NODES ──────────────────────────────────────────────────────────────────
+$('btn-refresh-nodes').addEventListener('click', loadNodes);
+
+async function loadNodes() {
+  const qs = new URLSearchParams();
+  const hf = $('node-filter-hostname').value.trim();
+  const sf = $('node-filter-status').value;
+  if (hf) qs.set('hostname', hf);
+  if (sf) qs.set('status', sf);
+  const body = await api(`/v1/nodes${qs.toString()?'?'+qs:''}`);
+  S.nodes = body.items || [];
+  $('nodes-count').textContent = S.nodes.length;
+  const list = $('nodes-list');
+  list.innerHTML = '';
+  if (!S.nodes.length) { list.innerHTML = '<div class="empty-hint">无节点</div>'; return; }
+  S.nodes.forEach(n => {
+    const d = el('div', 'list-item' + (n.id===S.selectedNode?' active':''));
+    d.innerHTML = `
+      <div class="list-item-name">${dot(n.status)}${n.hostname}</div>
+      <div class="list-item-sub">${n.platform?.os||'—'}/${n.platform?.arch||'—'} &nbsp;·&nbsp; ${badge(n.status)}</div>`;
+    d.addEventListener('click', () => selectNode(n.id));
+    list.appendChild(d);
+  });
+}
+
+async function selectNode(id) {
+  S.selectedNode = id;
+  $('inv-node-ids').value = id;
+  document.querySelectorAll('#nodes-list .list-item').forEach(d => {
+    d.classList.toggle('active', d.querySelector('.list-item-name')?.textContent?.includes(id));
+  });
+  const [detail, caps] = await Promise.all([
+    api(`/v1/nodes/${encodeURIComponent(id)}`),
+    api(`/v1/nodes/${encodeURIComponent(id)}/capabilities`)
+  ]);
+  $('tpl-invoke-nodes').value = id;
+  renderNodeRight(detail, caps.items || []);
+}
+
+function renderNodeRight(node, caps) {
+  const right = $('nodes-right');
+  right.innerHTML = '';
+
+  // Hero
+  const hero = el('div','node-hero');
+  hero.innerHTML = `
+    <div class="node-hero-hostname">${node.hostname}</div>
+    <div class="node-hero-row">
+      ${badge(node.status)}
+      <span class="node-hero-meta">${node.platform?.os||'?'}/${node.platform?.arch||'?'}</span>
+      ${node.platform?.kernel?`<span class="node-hero-meta">kernel ${node.platform.kernel}</span>`:''}
+      <span class="node-hero-meta" style="margin-left:auto">Agent ${node.agent?.version||'dev'}</span>
+    </div>
+    <div class="node-hero-row" style="margin-top:10px">
+      <span class="node-hero-meta">注册 ${fmtTime(node.registered_at)}</span>
+      <span class="node-hero-meta">最后心跳 ${fmtTime(node.last_seen_at)}</span>
+    </div>`;
+  right.appendChild(hero);
+
+  // Capabilities
+  const capCard = el('div','card');
+  capCard.innerHTML = '<div class="card-header"><span class="card-title">能力</span></div>';
+  const capBody = el('div','card-body');
+  const groups = {readonly:[], mutating:[], dangerous:[]};
+  caps.forEach(c => { if(groups[c.risk_level]) groups[c.risk_level].push(c); else groups.readonly.push(c); });
+  ['readonly','mutating','dangerous'].forEach(level => {
+    if (!groups[level].length) return;
+    const sec = el('div','caps-section');
+    sec.innerHTML = `<div class="caps-group-label">${level}</div><div class="caps-grid"></div>`;
+    const grid = sec.querySelector('.caps-grid');
+    groups[level].forEach(c => {
+      const chip = el('span', 'cap-chip'+(c.enabled?'':' disabled'));
+      chip.innerHTML = `<span class="cap-dot ${level}"></span>${c.name}`;
+      grid.appendChild(chip);
+    });
+    capBody.appendChild(sec);
+  });
+  capCard.appendChild(capBody);
+  right.appendChild(capCard);
+
+  // Quick actions
+  const actCard = el('div','card');
+  actCard.innerHTML = '<div class="card-header"><span class="card-title">快捷动作</span></div>';
+  const actBody = el('div','card-body');
+
+  const toolbar = el('div','action-toolbar');
+  [['sys.info','sys.info'],['sys.hardware','sys.hardware'],['fs.list','fs.list'],
+   ['fs.read','fs.read'],['fs.stat','fs.stat'],['fs.write','fs.write']].forEach(([act,lbl]) => {
+    const btn = el('button','action-btn');
+    btn.textContent = lbl;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.action-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      runNodeAction(act);
+    });
+    toolbar.appendChild(btn);
+  });
+  actBody.appendChild(toolbar);
+
+  // params
+  const params = el('div');
+  params.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">path</label>
+        <input class="form-input" id="node-path" value="/etc/hostname" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">limit / length</label>
+        <input class="form-input" id="node-limit" type="number" value="20" />
+      </div>
+    </div>
+    <div class="form-group mt-12">
+      <label class="form-label">content（仅 fs.write）</label>
+      <textarea class="form-textarea" id="node-content">hello from sysplane</textarea>
+    </div>`;
+  actBody.appendChild(params);
+
+  const resultArea = el('div','mt-16');
+  resultArea.id = 'node-action-result';
+  resultArea.innerHTML = `<div class="result-placeholder"><div class="result-placeholder-icon">▷</div><div class="result-placeholder-text">选择上方动作执行</div></div>`;
+  actBody.appendChild(resultArea);
+  actCard.appendChild(actBody);
+  right.appendChild(actCard);
+
+  // Security config card
+  const cfgCard = el('div','card');
+  cfgCard.id = 'node-config-card';
+  cfgCard.innerHTML = `
+    <div class="card-header">
+      <span class="card-title">安全配置</span>
+      <span style="font:400 11px var(--f-mono);color:var(--muted);margin-left:8px">修改后写入 agent 配置文件并热重载</span>
+      <div class="pane-tools">
+        <button class="btn-sm" onclick="loadNodeConfig('${node.id}')">读取</button>
+      </div>
+    </div>
+    <div class="card-body" id="node-config-body">
+      <div class="result-placeholder" style="height:80px">
+        <div class="result-placeholder-text">点击「读取」加载当前配置</div>
+      </div>
+    </div>`;
+  right.appendChild(cfgCard);
+}
+
+async function loadNodeConfig(nodeID) {
+  const body = $('node-config-body');
+  body.innerHTML = '<div class="result-placeholder" style="height:60px"><div class="result-placeholder-text">加载中…</div></div>';
+  try {
+    const res = await api(`/v1/nodes/${encodeURIComponent(nodeID)}/config`);
+    const sec = res.data || {};
+    body.innerHTML = `
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">max_file_size_mb</label>
+          <input class="form-input" id="cfg-max-file-size" type="number" value="${sec.max_file_size_mb ?? 100}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">allow_privileged_ports</label>
+          <select class="form-select" id="cfg-allow-privileged-ports">
+            <option value="false" ${!sec.allow_privileged_ports?'selected':''}>false</option>
+            <option value="true"  ${sec.allow_privileged_ports?'selected':''}>true</option>
           </select>
-          <input id="inv-filter-action" placeholder="action 过滤" />
-        </div>
-        <div class="row" style="margin-top: 12px;">
-          <button id="refresh-invocations">刷新列表</button>
-        </div>
-        <div id="invocations" class="list" style="margin-top: 12px;"></div>
-      </div>
-
-      <div class="stack">
-        <div class="panel">
-          <h2>Invocation 详情</h2>
-          <pre id="invocation-detail">请先选择 invocation。</pre>
-          <div class="row" style="margin-top: 12px;">
-            <button id="refresh-invocation-results" class="secondary">刷新结果</button>
-            <button id="cancel-invocation" class="warn">取消执行</button>
-          </div>
-          <h3 style="margin-top: 16px;">结果</h3>
-          <pre id="invocation-results">请先选择 invocation。</pre>
-        </div>
-
-        <div class="panel">
-          <h2>新建 Invocation</h2>
-          <div class="row">
-            <div>
-              <label for="inv-action-type">action_type</label>
-              <select id="inv-action-type">
-                <option value="builtin">builtin</option>
-                <option value="command_template">command_template</option>
-              </select>
-            </div>
-            <div>
-              <label for="inv-action">action</label>
-              <input id="inv-action" value="fs.read" />
-            </div>
-          </div>
-          <div class="row" style="margin-top: 12px;">
-            <div>
-              <label for="inv-node-ids">targets.node_ids（逗号分隔）</label>
-              <input id="inv-node-ids" value="node-01" />
-            </div>
-            <div>
-              <label for="inv-timeout">timeout_sec</label>
-              <input id="inv-timeout" type="number" value="10" min="1" />
-            </div>
-            <div>
-              <label for="inv-async">async</label>
-              <select id="inv-async">
-                <option value="false">false</option>
-                <option value="true">true</option>
-              </select>
-            </div>
-          </div>
-          <div style="margin-top: 12px;">
-            <label for="inv-params">params（JSON）</label>
-            <textarea id="inv-params">{"path":"/etc/hostname"}</textarea>
-          </div>
-          <div class="row" style="margin-top: 12px;">
-            <button id="create-invocation">创建 Invocation</button>
-          </div>
-          <h3 style="margin-top: 16px;">创建结果</h3>
-          <pre id="create-invocation-result">请先提交。</pre>
         </div>
       </div>
-    </section>
-
-    <section id="tab-audit" class="grid hidden">
-      <div class="panel">
-        <h2>审计事件</h2>
-        <div class="row">
-          <input id="audit-filter-action" placeholder="action 过滤" />
-          <select id="audit-filter-decision">
-            <option value="">全部 decision</option>
-            <option value="accepted">accepted</option>
-            <option value="succeeded">succeeded</option>
-            <option value="failed">failed</option>
-            <option value="partial">partial</option>
-            <option value="canceled">canceled</option>
-            <option value="created">created</option>
-            <option value="updated">updated</option>
-          </select>
-        </div>
-        <div class="row" style="margin-top: 12px;">
-          <button id="refresh-audit">刷新审计</button>
-        </div>
-        <div id="audit-events" class="list" style="margin-top: 12px;"></div>
+      <div class="form-group mt-12">
+        <label class="form-label">allowed_commands（每行一个绝对路径，空 = 禁用命令执行）</label>
+        <textarea class="form-textarea" id="cfg-allowed-commands" style="min-height:100px">${(sec.allowed_commands||[]).join('\n')}</textarea>
       </div>
-
-      <div class="panel">
-        <h2>审计详情</h2>
-        <pre id="audit-detail">请先选择审计事件。</pre>
+      <div class="form-group mt-12">
+        <label class="form-label">allowed_paths（每行一个前缀，空 = 不限制）</label>
+        <textarea class="form-textarea" id="cfg-allowed-paths">${(sec.allowed_paths||[]).join('\n')}</textarea>
       </div>
-    </section>
-  </main>
+      <div class="form-group mt-12">
+        <label class="form-label">blocked_paths（每行一个前缀，优先于 allowed_paths）</label>
+        <textarea class="form-textarea" id="cfg-blocked-paths">${(sec.blocked_paths||[]).join('\n')}</textarea>
+      </div>
+      <div class="form-group mt-12">
+        <label class="form-label">allowed_ports（逗号分隔整数，空 = 不限制端口）</label>
+        <input class="form-input" id="cfg-allowed-ports" value="${(sec.allowed_ports||[]).join(',')}" />
+      </div>
+      <div class="form-actions mt-12">
+        <button class="btn btn-primary" onclick="saveNodeConfig('${nodeID}')">保存并热重载</button>
+        <button class="btn btn-secondary" onclick="loadNodeConfig('${nodeID}')">重置</button>
+      </div>
+      <div id="cfg-status" class="status-bar" style="margin-top:10px"></div>`;
+  } catch(e) {
+    body.innerHTML = `<div class="card-body cell-err">${e.message}</div>`;
+  }
+}
 
-  <script>
-    const state = {
-      activeTab: "nodes",
-      selectedNodeId: "",
-      selectedTemplateId: "",
-      selectedInvocationId: "",
-      selectedAuditId: "",
-      nodes: [],
-      templates: [],
-      invocations: [],
-      audits: []
+async function saveNodeConfig(nodeID) {
+  const statusEl = $('cfg-status');
+  statusEl.className = 'status-bar warn';
+  statusEl.textContent = '保存中…';
+  try {
+    const lines = s => s.split('\n').map(l=>l.trim()).filter(Boolean);
+    const ints  = s => s.split(',').map(l=>l.trim()).filter(Boolean).map(Number).filter(n=>!isNaN(n));
+    const payload = {
+      max_file_size_mb:       Number($('cfg-max-file-size').value || 100),
+      allow_privileged_ports: $('cfg-allow-privileged-ports').value === 'true',
+      allowed_commands:       lines($('cfg-allowed-commands').value),
+      allowed_paths:          lines($('cfg-allowed-paths').value),
+      blocked_paths:          lines($('cfg-blocked-paths').value),
+      allowed_ports:          ints($('cfg-allowed-ports').value),
     };
+    await api(`/v1/nodes/${encodeURIComponent(nodeID)}/config`, {method:'PATCH', body:JSON.stringify(payload)});
+    statusEl.className = 'status-bar ok';
+    statusEl.textContent = '✓ 已保存并热重载';
+  } catch(e) {
+    statusEl.className = 'status-bar err';
+    statusEl.textContent = '✕ ' + e.message;
+  }
+}
 
-    const tokenInput = document.getElementById("token");
-    const authStatus = document.getElementById("auth-status");
-    const savedToken = localStorage.getItem("sysplane.webui.token");
-    if (savedToken) tokenInput.value = savedToken;
+async function runNodeAction(action) {
+  if (!S.selectedNode) return;
+  const resultEl = $('node-action-result');
+  resultEl.innerHTML = `<div class="result-placeholder"><div class="result-placeholder-text">执行中…</div></div>`;
+  try {
+    const path = $('node-path')?.value.trim() || '/';
+    const limit = Number($('node-limit')?.value || 20);
+    const content = $('node-content')?.value || '';
+    const payload = {};
+    if (action.startsWith('fs.')) payload.path = path;
+    if (action === 'fs.list') payload.limit = limit;
+    if (action === 'fs.read') payload.length = limit * 1024;
+    if (action === 'fs.write') { payload.content = content; payload.overwrite = true; }
 
-    document.querySelectorAll(".tab").forEach((button) => {
-      button.addEventListener("click", () => switchTab(button.dataset.tab));
+    const body = await api(`/v1/nodes/${encodeURIComponent(S.selectedNode)}/actions/${action}`, {
+      method: 'POST', body: JSON.stringify(payload)
     });
+    S.lastAction = action;
+    renderActionResult(action, body.data, resultEl);
+    loadInvocations().catch(()=>{});
+  } catch(e) {
+    resultEl.innerHTML = `<div class="card-body"><span class="cell-err">${e.message}</span></div>`;
+  }
+}
 
-    document.getElementById("save-token").addEventListener("click", async () => {
-      localStorage.setItem("sysplane.webui.token", tokenInput.value.trim());
-      await refreshActiveTab();
+// ── Action-specific renderers ──────────────────────────────────────────────
+function renderActionResult(action, data, el) {
+  if (!data && data !== 0) { el.innerHTML = '<div class="empty-hint">无结果</div>'; return; }
+  switch(action) {
+    case 'sys.info':     return renderSysInfo(data, el);
+    case 'sys.hardware': return renderSysHardware(data, el);
+    case 'fs.list':      return renderFsList(data, el);
+    case 'fs.read':      return renderFsRead(data, el);
+    case 'fs.stat':      return renderFsStat(data, el);
+    case 'fs.write':     return renderFsWrite(data, el);
+    default:             el.innerHTML = `<pre style="font:400 12px var(--f-mono);color:var(--text);white-space:pre-wrap;word-break:break-word">${JSON.stringify(data,null,2)}</pre>`;
+  }
+}
+
+function renderSysInfo(data, el) {
+  el.innerHTML = `
+    <div class="metric-row">
+      <div class="metric"><div class="metric-label">Hostname</div><div class="metric-value accent">${data.hostname||'—'}</div></div>
+      <div class="metric"><div class="metric-label">OS</div><div class="metric-value">${data.os||'—'}</div></div>
+      <div class="metric"><div class="metric-label">Arch</div><div class="metric-value">${data.arch||'—'}</div></div>
+      <div class="metric"><div class="metric-label">Kernel</div><div class="metric-value" style="font-size:13px">${data.kernel||'—'}</div></div>
+      <div class="metric"><div class="metric-label">Uptime</div><div class="metric-value ok">${fmtUptime(data.uptime_sec)}</div></div>
+    </div>`;
+}
+
+function renderSysHardware(data, el) {
+  let html = '';
+
+  // CPU
+  const cpu = data.cpu || {};
+  html += `<div class="card mb-8">
+    <div class="card-header"><span class="card-title">CPU</span><span style="font:400 11px var(--f-mono);color:var(--muted);margin-left:8px">${cpu.model_name||'—'}</span><span class="ml-auto" style="font:400 11px var(--f-mono);color:var(--muted)">${cpu.physical_cores||0}P / ${cpu.logical_cores||0}L</span></div>
+    <div class="card-body">`;
+  const usages = cpu.usage_percent || [];
+  if (usages.length) {
+    usages.forEach((u,i) => {
+      const pct = Math.round(u);
+      html += `<div class="prog-wrap"><div class="prog-header"><span class="prog-label">Core ${i}</span><span class="prog-val">${pct}%</span></div><div class="prog-track"><div class="prog-fill ${progColor(pct)}" style="width:${pct}%"></div></div></div>`;
     });
+  } else html += '<span class="cell-muted" style="font:400 12px var(--f-mono)">无使用率数据</span>';
+  html += '</div></div>';
 
-    document.getElementById("clear-token").addEventListener("click", () => {
-      localStorage.removeItem("sysplane.webui.token");
-      tokenInput.value = "";
-      setStatus("warn", "Token 已清空。");
+  // Memory
+  const mem = data.memory || {};
+  const memPct = Math.round(mem.used_percent || 0);
+  html += `<div class="card mb-8">
+    <div class="card-header"><span class="card-title">内存</span><span class="ml-auto" style="font:400 11px var(--f-mono);color:var(--muted)">${fmtBytes(mem.used_bytes)} / ${fmtBytes(mem.total_bytes)}</span></div>
+    <div class="card-body">
+      <div class="prog-wrap"><div class="prog-header"><span class="prog-label">已用</span><span class="prog-val">${memPct}%</span></div><div class="prog-track"><div class="prog-fill ${progColor(memPct)}" style="width:${memPct}%"></div></div></div>
+      <div class="metric-row" style="margin-top:10px">
+        <div class="metric"><div class="metric-label">Total</div><div class="metric-value">${fmtBytes(mem.total_bytes)}</div></div>
+        <div class="metric"><div class="metric-label">Available</div><div class="metric-value ok">${fmtBytes(mem.available_bytes)}</div></div>
+        <div class="metric"><div class="metric-label">Used</div><div class="metric-value">${fmtBytes(mem.used_bytes)}</div></div>
+      </div>
+    </div></div>`;
+
+  // Disks
+  const disks = data.disks || [];
+  if (disks.length) {
+    html += `<div class="card mb-8"><div class="card-header"><span class="card-title">磁盘</span></div><div class="card-body">`;
+    disks.forEach(d => {
+      const p = Math.round(d.used_percent||0);
+      html += `<div class="prog-wrap">
+        <div class="prog-header">
+          <span class="prog-label">${d.mountpoint} <span style="color:var(--dim)">${d.fstype} · ${d.device}</span></span>
+          <span class="prog-val">${p}% &nbsp; ${fmtBytes(d.total_bytes - d.free_bytes)} / ${fmtBytes(d.total_bytes)}</span>
+        </div>
+        <div class="prog-track"><div class="prog-fill ${progColor(p)}" style="width:${p}%"></div></div>
+      </div>`;
     });
+    html += '</div></div>';
+  }
 
-    document.getElementById("refresh-nodes").addEventListener("click", loadNodes);
-    document.getElementById("refresh-templates").addEventListener("click", loadTemplates);
-    document.getElementById("refresh-invocations").addEventListener("click", loadInvocations);
-    document.getElementById("refresh-audit").addEventListener("click", loadAuditEvents);
-    document.getElementById("create-template").addEventListener("click", createTemplate);
-    document.getElementById("update-template").addEventListener("click", updateTemplate);
-    document.getElementById("invoke-template").addEventListener("click", invokeTemplate);
-    document.getElementById("create-invocation").addEventListener("click", createInvocation);
-    document.getElementById("refresh-invocation-results").addEventListener("click", loadSelectedInvocation);
-    document.getElementById("cancel-invocation").addEventListener("click", cancelInvocation);
-
-    document.querySelectorAll("[data-node-action]").forEach((button) => {
-      button.addEventListener("click", () => runNodeAction(button.dataset.nodeAction));
+  // Network
+  const nets = data.network || [];
+  if (nets.length) {
+    html += `<div class="card"><div class="card-header"><span class="card-title">网络</span></div>
+      <table class="data-table"><thead><tr><th>接口</th><th>地址</th><th>↑ 发送</th><th>↓ 接收</th></tr></thead><tbody>`;
+    nets.forEach(n => {
+      const addrs = (n.addrs||[]).join(', ') || '—';
+      html += `<tr><td class="cell-accent">${n.name}</td><td class="cell-muted">${addrs}</td><td>${fmtBytes(n.bytes_sent)}</td><td>${fmtBytes(n.bytes_recv)}</td></tr>`;
     });
+    html += '</tbody></table></div>';
+  }
 
-    function switchTab(tab) {
-      state.activeTab = tab;
-      document.querySelectorAll(".tab").forEach((button) => {
-        button.classList.toggle("active", button.dataset.tab === tab);
-      });
-      ["nodes", "templates", "invocations", "audit"].forEach((name) => {
-        document.getElementById(`tab-${name}`).classList.toggle("hidden", name !== tab);
-      });
-      refreshActiveTab();
+  el.innerHTML = html;
+}
+
+function renderFsList(data, el) {
+  const entries = Array.isArray(data) ? data : (data?.entries || data?.items || []);
+  if (!entries.length) { el.innerHTML = '<div class="empty-hint">空目录</div>'; return; }
+
+  let html = `<div class="card"><table class="data-table"><thead><tr><th>名称</th><th>类型</th><th>大小</th><th>修改时间</th></tr></thead><tbody>`;
+  entries.forEach(e => {
+    const isDir = e.type==='dir'||e.is_dir;
+    const isLink = e.type==='link'||e.type==='symlink';
+    const icon = isDir ? '📁' : isLink ? '🔗' : '📄';
+    const nameClass = isDir ? 'cell-accent' : isLink ? 'file-link' : '';
+    html += `<tr>
+      <td class="${nameClass}"><span class="file-icon">${icon}</span>${e.name||e.path}</td>
+      <td class="cell-muted">${e.type||'—'}</td>
+      <td>${isDir?'—':fmtBytes(e.size)}</td>
+      <td class="cell-muted">${fmtTime(e.modified||e.mod_time)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+function renderFsRead(data, el) {
+  const content = typeof data === 'string' ? data : (data?.content || JSON.stringify(data, null, 2));
+  const path = data?.path || '';
+  const size = data?.size ? fmtBytes(data.size) : '';
+  const lines = content.split('\n');
+  const nums = lines.map((_,i) => i+1).join('\n');
+  el.innerHTML = `<div class="card code-viewer">
+    <div class="code-header"><span class="code-path">${path}</span><span class="code-size">${size}</span></div>
+    <div class="code-body">
+      <div class="code-lines">${nums}</div>
+      <div class="code-content">${escHtml(content)}</div>
+    </div>
+  </div>`;
+}
+
+function renderFsStat(data, el) {
+  const rows = [
+    ['Name',       data.name || data.path?.split('/').pop() || '—'],
+    ['Path',       data.path || '—'],
+    ['Type',       data.type || (data.is_dir ? 'dir' : 'file')],
+    ['Size',       fmtBytes(data.size)],
+    ['Mode',       data.mode || data.permissions || '—'],
+    ['Modified',   fmtTime(data.modified || data.mod_time)],
+    ['Owner',      data.owner || '—'],
+  ];
+  let html = '<div class="card"><div class="kv">';
+  rows.forEach(([k,v]) => { html += `<div class="kv-row"><div class="kv-key">${k}</div><div class="kv-val">${escHtml(String(v))}</div></div>`; });
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+function renderFsWrite(data, el) {
+  const path = data?.path || '—';
+  const written = data?.written !== undefined ? fmtBytes(data.written) : '';
+  el.innerHTML = `<div class="write-ok"><span class="write-icon">✓</span><div><div>写入成功</div><div style="font-size:11px;margin-top:3px;opacity:.7">${escHtml(path)} ${written}</div></div></div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── TEMPLATES ─────────────────────────────────────────────────────────────
+$('btn-refresh-templates').addEventListener('click', loadTemplates);
+$('btn-create-template').addEventListener('click', createTemplate);
+$('btn-update-template').addEventListener('click', updateTemplate);
+$('btn-invoke-template').addEventListener('click', invokeTemplate);
+
+async function loadTemplates() {
+  const qs = new URLSearchParams();
+  const n = $('template-filter-name').value.trim();
+  const r = $('template-filter-risk').value;
+  if (n) qs.set('name', n);
+  if (r) qs.set('risk_level', r);
+  const body = await api(`/v1/command-templates${qs.toString()?'?'+qs:''}`);
+  S.templates = body.items || [];
+  $('templates-count').textContent = S.templates.length;
+  const list = $('templates-list');
+  list.innerHTML = '';
+  if (!S.templates.length) { list.innerHTML = '<div class="empty-hint">无模板</div>'; return; }
+  S.templates.forEach(t => {
+    const d = el('div', 'list-item'+(t.id===S.selectedTemplate?' active':''));
+    d.innerHTML = `<div class="list-item-name">${t.name}</div><div class="list-item-sub">${badge(t.risk_level)} &nbsp; ${t.enabled?'<span style="color:var(--ok)">enabled</span>':'<span style="color:var(--muted)">disabled</span>'}</div>`;
+    d.addEventListener('click', () => selectTemplate(t.id));
+    list.appendChild(d);
+  });
+}
+
+async function selectTemplate(id) {
+  S.selectedTemplate = id;
+  const tpl = await api(`/v1/command-templates/${encodeURIComponent(id)}`);
+  // fill form
+  $('tpl-name').value = tpl.name || '';
+  $('tpl-description').value = tpl.description || '';
+  $('tpl-risk').value = tpl.risk_level || 'readonly';
+  $('tpl-target-os').value = (tpl.target_os||[]).join(',');
+  $('tpl-command').value = tpl.executor?.command || '';
+  $('tpl-args').value = JSON.stringify(tpl.executor?.args||[], null, 2);
+  $('tpl-schema').value = JSON.stringify(tpl.params_schema||{}, null, 2);
+  $('tpl-default-timeout').value = tpl.default_timeout_sec || 10;
+  $('tpl-max-timeout').value = tpl.max_timeout_sec || 30;
+
+  // detail card
+  const detailCard = $('template-detail-card');
+  detailCard.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="card-title">${tpl.name}</span>${badge(tpl.risk_level)}<span class="ml-auto" style="font:400 11px var(--f-mono);color:var(--muted)">${tpl.id}</span></div>
+      <div class="card-body">
+        <div class="kv">
+          <div class="kv-row"><div class="kv-key">Description</div><div class="kv-val">${tpl.description||'—'}</div></div>
+          <div class="kv-row"><div class="kv-key">Target OS</div><div class="kv-val">${(tpl.target_os||[]).map(o=>`<span class="tag">${o}</span>`).join(' ')||'—'}</div></div>
+          <div class="kv-row"><div class="kv-key">Command</div><div class="kv-val cell-accent">${tpl.executor?.command||'—'} ${(tpl.executor?.args||[]).join(' ')}</div></div>
+          <div class="kv-row"><div class="kv-key">Timeout</div><div class="kv-val">${tpl.default_timeout_sec}s / max ${tpl.max_timeout_sec}s</div></div>
+          <div class="kv-row"><div class="kv-key">Created</div><div class="kv-val cell-muted">${fmtTime(tpl.created_at)}</div></div>
+        </div>
+      </div>
+    </div>`;
+  await loadTemplates();
+}
+
+function collectTemplatePayload(isPatch) {
+  const base = {
+    name: $('tpl-name').value.trim(),
+    description: $('tpl-description').value,
+    risk_level: $('tpl-risk').value,
+    target_os: splitCSV($('tpl-target-os').value),
+    executor: { type:'process', command:$('tpl-command').value.trim(), args: JSON.parse($('tpl-args').value||'[]') },
+    params_schema: JSON.parse($('tpl-schema').value||'{}'),
+    default_timeout_sec: Number($('tpl-default-timeout').value||10),
+    max_timeout_sec: Number($('tpl-max-timeout').value||30),
+    max_output_bytes: 262144
+  };
+  if (!isPatch) return base;
+  const {name, executor, ...patch} = base;
+  return patch;
+}
+
+async function createTemplate() {
+  const tpl = await api('/v1/command-templates', {method:'POST', body: JSON.stringify(collectTemplatePayload(false))});
+  S.selectedTemplate = tpl.id;
+  await loadTemplates();
+}
+
+async function updateTemplate() {
+  if (!S.selectedTemplate) return;
+  await api(`/v1/command-templates/${encodeURIComponent(S.selectedTemplate)}`, {method:'PATCH', body: JSON.stringify(collectTemplatePayload(true))});
+  await loadTemplates();
+}
+
+async function invokeTemplate() {
+  if (!S.selectedTemplate) return;
+  const resultEl = $('tpl-invoke-result');
+  resultEl.innerHTML = '<div class="result-placeholder"><div class="result-placeholder-text">执行中…</div></div>';
+  try {
+    const body = await api(`/v1/command-templates/${encodeURIComponent(S.selectedTemplate)}:invoke`, {
+      method:'POST',
+      body: JSON.stringify({
+        targets:{ node_ids: splitCSV($('tpl-invoke-nodes').value) },
+        params: JSON.parse($('tpl-invoke-params').value||'{}'),
+        timeout_sec: Number($('tpl-invoke-timeout').value||10),
+        async: $('tpl-invoke-async').value==='true'
+      })
+    });
+    if (body?.invocation?.id) S.selectedInvocation = body.invocation.id;
+    renderInvocationResults(body, resultEl);
+    loadInvocations().catch(()=>{});
+  } catch(e) { resultEl.innerHTML = `<div class="card-body cell-err">${e.message}</div>`; }
+}
+
+// ── INVOCATIONS ───────────────────────────────────────────────────────────
+$('btn-refresh-invocations').addEventListener('click', loadInvocations);
+$('btn-create-invocation').addEventListener('click', createInvocation);
+
+async function loadInvocations() {
+  const qs = new URLSearchParams();
+  const st = $('inv-filter-status').value;
+  const ac = $('inv-filter-action').value.trim();
+  if (st) qs.set('status', st);
+  if (ac) qs.set('action', ac);
+  const body = await api(`/v1/invocations${qs.toString()?'?'+qs:''}`);
+  S.invocations = body.items || [];
+  $('inv-count').textContent = S.invocations.length;
+  const list = $('invocations-list');
+  list.innerHTML = '';
+  if (!S.invocations.length) { list.innerHTML = '<div class="empty-hint">无记录</div>'; return; }
+  S.invocations.forEach(inv => {
+    const d = el('div','list-item'+(inv.id===S.selectedInvocation?' active':''));
+    const targets = (inv.targets?.node_ids||[]).join(', ') || '—';
+    d.innerHTML = `<div class="list-item-name">${inv.action}</div><div class="list-item-sub">${badge(inv.status)} &nbsp; ${targets}</div>`;
+    d.addEventListener('click', () => selectInvocation(inv.id));
+    list.appendChild(d);
+  });
+}
+
+async function selectInvocation(id) {
+  S.selectedInvocation = id;
+  document.querySelectorAll('#invocations-list .list-item').forEach(d=>d.classList.toggle('active',d.querySelector('.list-item-name')&&d.querySelector('.list-item-sub')?.textContent?.length>0&&S.invocations.find(i=>i.id===id)&&d===document.querySelectorAll('#invocations-list .list-item')[S.invocations.findIndex(i=>i.id===id)]));
+  await loadInvocations();
+  const area = $('invocation-detail-area');
+  area.innerHTML = '<div class="result-placeholder"><div class="result-placeholder-text">加载中…</div></div>';
+  const [detail, results] = await Promise.all([
+    api(`/v1/invocations/${encodeURIComponent(id)}`),
+    api(`/v1/invocations/${encodeURIComponent(id)}/results`)
+  ]);
+  renderInvocationDetail(detail, results.items||[], area);
+}
+
+function renderInvocationDetail(inv, results, area) {
+  area.innerHTML = '';
+
+  // Summary card
+  const sumCard = el('div','card');
+  sumCard.innerHTML = `
+    <div class="card-header">
+      <span class="card-title">${inv.action}</span>
+      ${badge(inv.status)}
+      <span class="ml-auto" style="font:400 11px var(--f-mono);color:var(--muted)">${inv.id}</span>
+    </div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="kv-row"><div class="kv-key">Action Type</div><div class="kv-val">${inv.action_type||'—'}</div></div>
+        <div class="kv-row"><div class="kv-key">Targets</div><div class="kv-val">${(inv.targets?.node_ids||[]).map(n=>`<span class="audit-target">${n}</span>`).join(' ')||'—'}</div></div>
+        <div class="kv-row"><div class="kv-key">Requested by</div><div class="kv-val cell-muted">${inv.requested_by?.subject_id||'—'} via ${inv.requested_by?.source||'—'}</div></div>
+        <div class="kv-row"><div class="kv-key">Created</div><div class="kv-val cell-muted">${fmtTime(inv.created_at)}</div></div>
+        ${inv.started_at?`<div class="kv-row"><div class="kv-key">Started</div><div class="kv-val cell-muted">${fmtTime(inv.started_at)}</div></div>`:''}
+        ${inv.finished_at?`<div class="kv-row"><div class="kv-key">Finished</div><div class="kv-val cell-muted">${fmtTime(inv.finished_at)}</div></div>`:''}
+      </div>
+      <div class="form-actions" style="margin-top:14px">
+        <button class="btn btn-secondary" onclick="loadInvocationById('${inv.id}')">刷新结果</button>
+        <button class="btn btn-danger" onclick="cancelInv('${inv.id}')">取消执行</button>
+      </div>
+    </div>`;
+  area.appendChild(sumCard);
+
+  // Per-node result cards
+  results.forEach(r => {
+    const card = el('div','inv-result-card');
+    const started = r.started_at ? new Date(r.started_at) : null;
+    const finished = r.finished_at ? new Date(r.finished_at) : null;
+    const duration = (started && finished) ? `${((finished-started)/1000).toFixed(2)}s` : '';
+    card.innerHTML = `
+      <div class="inv-result-header">
+        <span class="inv-result-node">${r.hostname || r.node_id}</span>
+        ${badge(r.status)}
+        <span class="inv-result-timing">${duration}</span>
+      </div>
+      <div class="inv-result-body" id="invres-${r.node_id}"></div>`;
+    area.appendChild(card);
+    const body = card.querySelector(`#invres-${r.node_id}`);
+    if (r.error) {
+      body.innerHTML = `<div class="inv-error">✕ [${r.error.code}] ${r.error.message}</div>`;
+    } else if (r.data !== undefined) {
+      renderActionResult(inv.action, r.data, body);
+    } else {
+      body.innerHTML = '<span class="cell-muted" style="font:400 12px var(--f-mono)">无数据</span>';
     }
+  });
+}
 
-    async function refreshActiveTab() {
-      setStatus("warn", "正在加载数据...");
-      try {
-        if (state.activeTab === "nodes") await loadNodes();
-        if (state.activeTab === "templates") await loadTemplates();
-        if (state.activeTab === "invocations") await loadInvocations();
-        if (state.activeTab === "audit") await loadAuditEvents();
-        setStatus("ok", "数据已刷新。");
-      } catch (error) {
-        setStatus("err", `加载失败：${error.message}`);
-      }
-    }
+function renderInvocationResults(body, el) {
+  el.innerHTML = '';
+  const inv = body.invocation;
+  const results = body.results || [];
+  if (inv) {
+    const header = document.createElement('div');
+    header.innerHTML = `<div style="margin-bottom:10px;font:400 11px var(--f-mono);color:var(--muted)">Invocation ${inv.id} &nbsp; ${badge(inv.status)}</div>`;
+    el.appendChild(header);
+  }
+  if (!results.length && inv?.async) {
+    el.innerHTML += `<div class="result-placeholder"><div class="result-placeholder-text">异步执行中，前往「执行中心」查看结果</div></div>`;
+    return;
+  }
+  results.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'inv-result-card';
+    card.innerHTML = `<div class="inv-result-header"><span class="inv-result-node">${r.hostname||r.node_id}</span>${badge(r.status)}</div><div class="inv-result-body" id="ires-${r.node_id}"></div>`;
+    el.appendChild(card);
+    const b = document.getElementById(`ires-${r.node_id}`);
+    if (r.error) b.innerHTML = `<div class="inv-error">✕ ${r.error.message}</div>`;
+    else if (r.data!==undefined) renderActionResult(inv?.action||S.lastAction, r.data, b);
+  });
+}
 
-    function setStatus(kind, message) {
-      authStatus.className = `status ${kind}`;
-      authStatus.textContent = message;
-    }
+async function loadInvocationById(id) {
+  const area = $('invocation-detail-area');
+  const [detail, results] = await Promise.all([
+    api(`/v1/invocations/${encodeURIComponent(id)}`),
+    api(`/v1/invocations/${encodeURIComponent(id)}/results`)
+  ]);
+  renderInvocationDetail(detail, results.items||[], area);
+}
 
-    async function api(path, options = {}) {
-      const token = tokenInput.value.trim();
-      const headers = new Headers(options.headers || {});
-      headers.set("Content-Type", "application/json");
-      if (token) headers.set("Authorization", `Bearer ${token}`);
-      const res = await fetch(path, { ...options, headers });
-      const text = await res.text();
-      let body = {};
-      try {
-        body = text ? JSON.parse(text) : {};
-      } catch {
-        body = { raw: text };
-      }
-      if (!res.ok) {
-        throw new Error(body?.error?.message || `HTTP ${res.status}`);
-      }
-      return body;
-    }
+async function cancelInv(id) {
+  await api(`/v1/invocations/${encodeURIComponent(id)}:cancel`, {method:'POST', body:'{}'});
+  await loadInvocationById(id);
+  loadInvocations().catch(()=>{});
+}
 
-    function pretty(value) {
-      return JSON.stringify(value, null, 2);
-    }
+async function createInvocation() {
+  const body = await api('/v1/invocations', {
+    method:'POST',
+    body: JSON.stringify({
+      action: $('inv-action').value.trim(),
+      action_type: $('inv-action-type').value,
+      targets: { node_ids: splitCSV($('inv-node-ids').value) },
+      params: JSON.parse($('inv-params').value||'{}'),
+      timeout_sec: Number($('inv-timeout').value||10),
+      async: $('inv-async').value==='true'
+    })
+  });
+  if (body?.invocation?.id) S.selectedInvocation = body.invocation.id;
+  const area = $('invocation-detail-area');
+  renderInvocationResults(body, area);
+  await loadInvocations();
+}
 
-    function splitCSV(value) {
-      return value.split(",").map((item) => item.trim()).filter(Boolean);
-    }
+// ── AUDIT ─────────────────────────────────────────────────────────────────
+$('btn-refresh-audit').addEventListener('click', loadAuditEvents);
 
-    function selectedNodeIDs() {
-      const raw = document.getElementById("inv-node-ids").value.trim();
-      return splitCSV(raw);
-    }
+async function loadAuditEvents() {
+  const qs = new URLSearchParams();
+  const a = $('audit-filter-action').value.trim();
+  const d = $('audit-filter-decision').value;
+  if (a) qs.set('action', a);
+  if (d) qs.set('decision', d);
+  const body = await api(`/v1/audit/events${qs.toString()?'?'+qs:''}`);
+  S.audits = body.items || [];
+  $('audit-count').textContent = S.audits.length;
+  const list = $('audit-list');
+  list.innerHTML = '';
+  if (!S.audits.length) { list.innerHTML = '<div class="empty-hint">无审计事件</div>'; return; }
+  S.audits.forEach(evt => {
+    const d = el('div','list-item'+(evt.id===S.selectedAudit?' active':''));
+    d.innerHTML = `<div class="list-item-name">${evt.action}</div><div class="list-item-sub">${badge(evt.decision)} &nbsp; <span style="color:var(--muted)">${evt.subject_id||'—'}</span></div>`;
+    d.addEventListener('click', () => selectAuditEvent(evt.id));
+    list.appendChild(d);
+  });
+}
 
-    async function loadNodes() {
-      const hostname = document.getElementById("node-filter-hostname").value.trim();
-      const status = document.getElementById("node-filter-status").value;
-      const qs = new URLSearchParams();
-      if (hostname) qs.set("hostname", hostname);
-      if (status) qs.set("status", status);
-      const body = await api(`/v1/nodes${qs.toString() ? `?${qs}` : ""}`);
-      state.nodes = body.items || [];
-      const list = document.getElementById("nodes");
-      list.innerHTML = "";
-      if (!state.nodes.length) {
-        list.innerHTML = "<div class='hint'>没有可用节点。</div>";
-        return;
-      }
-      state.nodes.forEach((node) => {
-        const button = document.createElement("button");
-        button.className = node.id === state.selectedNodeId ? "active" : "";
-        button.innerHTML = `<strong>${node.hostname}</strong><span class="badge">${node.status}</span><div class="hint">${(node.agent?.connected_via || []).join(" → ") || "direct"}</div>`;
-        button.addEventListener("click", () => selectNode(node.id));
-        list.appendChild(button);
-      });
-      if (!state.selectedNodeId) {
-        await selectNode(state.nodes[0].id);
-      }
-    }
+async function selectAuditEvent(id) {
+  S.selectedAudit = id;
+  const evt = await api(`/v1/audit/events/${encodeURIComponent(id)}`);
+  const area = $('audit-detail-area');
+  area.innerHTML = '';
+  const card = el('div','card');
+  card.innerHTML = `
+    <div class="card-header">
+      <span class="card-title">${evt.action}</span>
+      ${badge(evt.decision)}
+      <span class="ml-auto" style="font:400 11px var(--f-mono);color:var(--muted)">${evt.id}</span>
+    </div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="kv-row"><div class="kv-key">Action Type</div><div class="kv-val">${evt.action_type||'—'}</div></div>
+        <div class="kv-row"><div class="kv-key">Risk Level</div><div class="kv-val">${badge(evt.risk_level)}</div></div>
+        <div class="kv-row"><div class="kv-key">Subject</div><div class="kv-val cell-accent">${evt.subject_id||'—'}</div></div>
+        <div class="kv-row"><div class="kv-key">Token Type</div><div class="kv-val cell-muted">${evt.token_type||'—'}</div></div>
+        <div class="kv-row"><div class="kv-key">Source</div><div class="kv-val cell-muted">${evt.source||'—'}</div></div>
+        <div class="kv-row"><div class="kv-key">Decision</div><div class="kv-val">${badge(evt.decision)}</div></div>
+        ${evt.decision_reason?`<div class="kv-row"><div class="kv-key">Reason</div><div class="kv-val cell-warn">${evt.decision_reason}</div></div>`:''}
+        <div class="kv-row"><div class="kv-key">Invocation</div><div class="kv-val cell-muted">${evt.invocation_id||'—'}</div></div>
+        <div class="kv-row"><div class="kv-key">Created</div><div class="kv-val cell-muted">${fmtTime(evt.created_at)}</div></div>
+        ${evt.finished_at?`<div class="kv-row"><div class="kv-key">Finished</div><div class="kv-val cell-muted">${fmtTime(evt.finished_at)}</div></div>`:''}
+      </div>
+      ${evt.target_node_ids?.length?`
+        <div style="margin-top:14px">
+          <div class="caps-group-label">Target Nodes</div>
+          <div class="audit-targets">${(evt.target_node_ids).map(n=>`<span class="audit-target">${n}</span>`).join('')}</div>
+        </div>`:''}
+    </div>`;
+  area.appendChild(card);
+  await loadAuditEvents();
+}
 
-    async function selectNode(nodeID) {
-      state.selectedNodeId = nodeID;
-      await loadNodes();
-      const detail = await api(`/v1/nodes/${encodeURIComponent(nodeID)}`);
-      const caps = await api(`/v1/nodes/${encodeURIComponent(nodeID)}/capabilities`);
-      document.getElementById("node-detail").textContent = pretty(detail);
-      document.getElementById("capabilities").textContent = pretty(caps.items || []);
-      document.getElementById("tpl-invoke-nodes").value = nodeID;
-      document.getElementById("inv-node-ids").value = nodeID;
-    }
-
-    async function runNodeAction(action) {
-      if (!state.selectedNodeId) {
-        throw new Error("请先选择节点");
-      }
-      const path = document.getElementById("node-path").value.trim();
-      const size = Number(document.getElementById("node-limit").value || "0");
-      const content = document.getElementById("node-content").value;
-      const payload = {};
-      if (action.startsWith("fs:")) payload.path = path;
-      if (action === "fs:list") payload.limit = size;
-      if (action === "fs:read") payload.length = size;
-      if (action === "fs:write") {
-        payload.content = content;
-        payload.overwrite = true;
-      }
-      const body = await api(`/v1/nodes/${encodeURIComponent(state.selectedNodeId)}/actions/${action}`, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      document.getElementById("node-action-result").textContent = pretty(body.data);
-      await loadInvocations();
-    }
-
-    async function loadTemplates() {
-      const qs = new URLSearchParams();
-      const name = document.getElementById("template-filter-name").value.trim();
-      const risk = document.getElementById("template-filter-risk").value;
-      if (name) qs.set("name", name);
-      if (risk) qs.set("risk_level", risk);
-      const body = await api(`/v1/command-templates${qs.toString() ? `?${qs}` : ""}`);
-      state.templates = body.items || [];
-      const list = document.getElementById("templates");
-      list.innerHTML = "";
-      if (!state.templates.length) {
-        list.innerHTML = "<div class='hint'>还没有模板。</div>";
-        document.getElementById("template-detail").textContent = "还没有模板。";
-        return;
-      }
-      state.templates.forEach((tpl) => {
-        const button = document.createElement("button");
-        button.className = tpl.id === state.selectedTemplateId ? "active" : "";
-        button.innerHTML = `<strong>${tpl.name}</strong><span class="badge">${tpl.risk_level}</span><div class="hint">${tpl.enabled ? "enabled" : "disabled"}</div>`;
-        button.addEventListener("click", () => selectTemplate(tpl.id));
-        list.appendChild(button);
-      });
-      if (!state.selectedTemplateId) {
-        await selectTemplate(state.templates[0].id);
-      }
-    }
-
-    async function selectTemplate(templateID) {
-      state.selectedTemplateId = templateID;
-      const tpl = await api(`/v1/command-templates/${encodeURIComponent(templateID)}`);
-      document.getElementById("template-detail").textContent = pretty(tpl);
-      document.getElementById("tpl-name").value = tpl.name || "";
-      document.getElementById("tpl-description").value = tpl.description || "";
-      document.getElementById("tpl-risk").value = tpl.risk_level || "readonly";
-      document.getElementById("tpl-enabled").value = String(tpl.enabled);
-      document.getElementById("tpl-target-os").value = (tpl.target_os || []).join(",");
-      document.getElementById("tpl-command").value = tpl.executor?.command || "";
-      document.getElementById("tpl-args").value = pretty(tpl.executor?.args || []);
-      document.getElementById("tpl-schema").value = pretty(tpl.params_schema || {});
-      document.getElementById("tpl-default-timeout").value = tpl.default_timeout_sec || 10;
-      document.getElementById("tpl-max-timeout").value = tpl.max_timeout_sec || 30;
-      document.getElementById("tpl-max-output").value = tpl.max_output_bytes || 262144;
-      await loadTemplates();
-    }
-
-    async function createTemplate() {
-      const payload = collectTemplatePayload(false);
-      const tpl = await api("/v1/command-templates", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      document.getElementById("template-detail").textContent = pretty(tpl);
-      state.selectedTemplateId = tpl.id;
-      await loadTemplates();
-    }
-
-    async function updateTemplate() {
-      if (!state.selectedTemplateId) {
-        throw new Error("请先选择模板");
-      }
-      const payload = collectTemplatePayload(true);
-      const tpl = await api(`/v1/command-templates/${encodeURIComponent(state.selectedTemplateId)}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload)
-      });
-      document.getElementById("template-detail").textContent = pretty(tpl);
-      await loadTemplates();
-    }
-
-    function collectTemplatePayload(isPatch) {
-      const payload = {
-        name: document.getElementById("tpl-name").value.trim(),
-        description: document.getElementById("tpl-description").value,
-        risk_level: document.getElementById("tpl-risk").value,
-        target_os: splitCSV(document.getElementById("tpl-target-os").value),
-        executor: {
-          type: "process",
-          command: document.getElementById("tpl-command").value.trim(),
-          args: JSON.parse(document.getElementById("tpl-args").value || "[]")
-        },
-        params_schema: JSON.parse(document.getElementById("tpl-schema").value || "{}"),
-        default_timeout_sec: Number(document.getElementById("tpl-default-timeout").value || "10"),
-        max_timeout_sec: Number(document.getElementById("tpl-max-timeout").value || "30"),
-        max_output_bytes: Number(document.getElementById("tpl-max-output").value || "262144")
-      };
-      if (!isPatch) return payload;
-      return {
-        description: payload.description,
-        risk_level: payload.risk_level,
-        target_os: payload.target_os,
-        params_schema: payload.params_schema,
-        default_timeout_sec: payload.default_timeout_sec,
-        max_timeout_sec: payload.max_timeout_sec,
-        max_output_bytes: payload.max_output_bytes,
-        enabled: document.getElementById("tpl-enabled").value === "" ? undefined : document.getElementById("tpl-enabled").value === "true"
-      };
-    }
-
-    async function invokeTemplate() {
-      if (!state.selectedTemplateId) {
-        throw new Error("请先选择模板");
-      }
-      const body = await api(`/v1/command-templates/${encodeURIComponent(state.selectedTemplateId)}:invoke`, {
-        method: "POST",
-        body: JSON.stringify({
-          targets: { node_ids: splitCSV(document.getElementById("tpl-invoke-nodes").value) },
-          params: JSON.parse(document.getElementById("tpl-invoke-params").value || "{}"),
-          timeout_sec: Number(document.getElementById("tpl-invoke-timeout").value || "10"),
-          async: document.getElementById("tpl-invoke-async").value === "true"
-        })
-      });
-      document.getElementById("template-invoke-result").textContent = pretty(body);
-      if (body?.invocation?.id) {
-        state.selectedInvocationId = body.invocation.id;
-      }
-      await loadInvocations();
-    }
-
-    async function loadInvocations() {
-      const qs = new URLSearchParams();
-      const status = document.getElementById("inv-filter-status").value;
-      const action = document.getElementById("inv-filter-action").value.trim();
-      if (status) qs.set("status", status);
-      if (action) qs.set("action", action);
-      const body = await api(`/v1/invocations${qs.toString() ? `?${qs}` : ""}`);
-      state.invocations = body.items || [];
-      const list = document.getElementById("invocations");
-      list.innerHTML = "";
-      if (!state.invocations.length) {
-        list.innerHTML = "<div class='hint'>还没有 invocation。</div>";
-        return;
-      }
-      state.invocations.forEach((inv) => {
-        const button = document.createElement("button");
-        button.className = inv.id === state.selectedInvocationId ? "active" : "";
-        button.innerHTML = `<strong>${inv.action}</strong><span class="badge">${inv.status}</span><div class="hint">${inv.id}</div>`;
-        button.addEventListener("click", () => selectInvocation(inv.id));
-        list.appendChild(button);
-      });
-      if (!state.selectedInvocationId) {
-        await selectInvocation(state.invocations[0].id);
-      }
-    }
-
-    async function selectInvocation(invocationID) {
-      state.selectedInvocationId = invocationID;
-      await loadSelectedInvocation();
-      await loadInvocations();
-    }
-
-    async function loadSelectedInvocation() {
-      if (!state.selectedInvocationId) {
-        throw new Error("请先选择 invocation");
-      }
-      const detail = await api(`/v1/invocations/${encodeURIComponent(state.selectedInvocationId)}`);
-      const results = await api(`/v1/invocations/${encodeURIComponent(state.selectedInvocationId)}/results`);
-      document.getElementById("invocation-detail").textContent = pretty(detail);
-      document.getElementById("invocation-results").textContent = pretty(results.items || []);
-    }
-
-    async function createInvocation() {
-      const body = await api("/v1/invocations", {
-        method: "POST",
-        body: JSON.stringify({
-          action: document.getElementById("inv-action").value.trim(),
-          action_type: document.getElementById("inv-action-type").value,
-          targets: { node_ids: selectedNodeIDs() },
-          params: JSON.parse(document.getElementById("inv-params").value || "{}"),
-          timeout_sec: Number(document.getElementById("inv-timeout").value || "10"),
-          async: document.getElementById("inv-async").value === "true"
-        })
-      });
-      document.getElementById("create-invocation-result").textContent = pretty(body);
-      if (body?.invocation?.id) {
-        state.selectedInvocationId = body.invocation.id;
-      }
-      await loadInvocations();
-    }
-
-    async function cancelInvocation() {
-      if (!state.selectedInvocationId) {
-        throw new Error("请先选择 invocation");
-      }
-      const body = await api(`/v1/invocations/${encodeURIComponent(state.selectedInvocationId)}:cancel`, {
-        method: "POST",
-        body: JSON.stringify({})
-      });
-      document.getElementById("invocation-detail").textContent = pretty(body.invocation);
-      await loadInvocations();
-      await loadSelectedInvocation();
-    }
-
-    async function loadAuditEvents() {
-      const qs = new URLSearchParams();
-      const action = document.getElementById("audit-filter-action").value.trim();
-      const decision = document.getElementById("audit-filter-decision").value;
-      if (action) qs.set("action", action);
-      if (decision) qs.set("decision", decision);
-      const body = await api(`/v1/audit/events${qs.toString() ? `?${qs}` : ""}`);
-      state.audits = body.items || [];
-      const list = document.getElementById("audit-events");
-      list.innerHTML = "";
-      if (!state.audits.length) {
-        list.innerHTML = "<div class='hint'>还没有审计事件。</div>";
-        return;
-      }
-      state.audits.forEach((evt) => {
-        const button = document.createElement("button");
-        button.className = evt.id === state.selectedAuditId ? "active" : "";
-        button.innerHTML = `<strong>${evt.action}</strong><span class="badge">${evt.decision}</span><div class="hint">${evt.id}</div>`;
-        button.addEventListener("click", () => selectAuditEvent(evt.id));
-        list.appendChild(button);
-      });
-      if (!state.selectedAuditId) {
-        await selectAuditEvent(state.audits[0].id);
-      }
-    }
-
-    async function selectAuditEvent(auditID) {
-      state.selectedAuditId = auditID;
-      const evt = await api(`/v1/audit/events/${encodeURIComponent(auditID)}`);
-      document.getElementById("audit-detail").textContent = pretty(evt);
-      await loadAuditEvents();
-    }
-
-    refreshActiveTab();
-  </script>
+// ── Boot ───────────────────────────────────────────────────────────────────
+refreshTab('nodes');
+</script>
 </body>
 </html>

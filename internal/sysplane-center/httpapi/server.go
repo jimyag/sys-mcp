@@ -174,6 +174,10 @@ func (s *Server) handleNodeRoutes(w http.ResponseWriter, r *http.Request) {
 		s.handleGetNode(w, r, nodeID)
 	case len(parts) == 2 && parts[1] == "capabilities" && r.Method == http.MethodGet:
 		s.handleCapabilities(w, r, nodeID)
+	case len(parts) == 2 && parts[1] == "config" && r.Method == http.MethodGet:
+		s.handleGetNodeConfig(w, r, nodeID)
+	case len(parts) == 2 && parts[1] == "config" && r.Method == http.MethodPatch:
+		s.handlePatchNodeConfig(w, r, nodeID)
 	case len(parts) == 3 && parts[1] == "actions" && r.Method == http.MethodPost:
 		s.handleAction(w, r, nodeID, parts[2])
 	default:
@@ -215,6 +219,49 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, node
 		})
 	}
 	s.writeJSON(w, http.StatusOK, listResponse[capabilityResponse]{Items: items, NextCursor: ""})
+}
+
+func (s *Server) handleGetNodeConfig(w http.ResponseWriter, r *http.Request, nodeID string) {
+	meta := requestMetaFromContext(r.Context())
+	invocation, result, err := s.admin.DirectInvokeBuiltin(r.Context(), meta, nodeID, "config.get", nil)
+	_ = invocation
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	if result != nil && result.Error != nil {
+		s.writeInvocationError(w, r, result.Error)
+		return
+	}
+	data := map[string]any{}
+	if result != nil {
+		data, _ = result.Data.(map[string]any)
+	}
+	s.writeJSON(w, http.StatusOK, successEnvelope{Data: data})
+}
+
+func (s *Server) handlePatchNodeConfig(w http.ResponseWriter, r *http.Request, nodeID string) {
+	params, err := decodeJSONMap(r)
+	if err != nil {
+		s.writeError(w, r, http.StatusBadRequest, "INVALID_ARGUMENT", err.Error(), nil)
+		return
+	}
+	meta := requestMetaFromContext(r.Context())
+	invocation, result, svcErr := s.admin.DirectInvokeBuiltin(r.Context(), meta, nodeID, "config.set", params)
+	_ = invocation
+	if svcErr != nil {
+		s.writeServiceError(w, r, svcErr)
+		return
+	}
+	if result != nil && result.Error != nil {
+		s.writeInvocationError(w, r, result.Error)
+		return
+	}
+	data := map[string]any{}
+	if result != nil {
+		data, _ = result.Data.(map[string]any)
+	}
+	s.writeJSON(w, http.StatusOK, successEnvelope{Data: data})
 }
 
 func (s *Server) handleAction(w http.ResponseWriter, r *http.Request, nodeID, action string) {

@@ -22,6 +22,10 @@ type AgentConfig struct {
 	ReconnectMaxDelaySec int `yaml:"reconnect_max_delay_sec"`
 	// Hostname overrides os.Hostname() for the agent's identity.
 	Hostname string `yaml:"hostname"`
+
+	// ConfigPath is the absolute path of the loaded config file.
+	// Set automatically by Load(); not serialized to YAML.
+	ConfigPath string `yaml:"-" json:"-"`
 }
 
 // Upstream describes how the agent connects to a center or proxy.
@@ -43,18 +47,18 @@ type TLS struct {
 // Security defines file-access restrictions for tool operations.
 type Security struct {
 	// AllowedPaths, if non-empty, restricts file ops to these path prefixes.
-	AllowedPaths []string `yaml:"allowed_paths"`
+	AllowedPaths []string `yaml:"allowed_paths" json:"allowed_paths"`
 	// BlockedPaths are always denied (takes priority over AllowedPaths).
 	// Default: ["/proc", "/sys", "/dev"].
-	BlockedPaths []string `yaml:"blocked_paths"`
+	BlockedPaths []string `yaml:"blocked_paths" json:"blocked_paths"`
 	// MaxFileSizeMB is the max file size for read_file. Default: 100.
-	MaxFileSizeMB int64 `yaml:"max_file_size_mb"`
+	MaxFileSizeMB int64 `yaml:"max_file_size_mb" json:"max_file_size_mb"`
 	// AllowPrivilegedPorts allows proxy_local_api to call ports <1024. Default: false.
-	AllowPrivilegedPorts bool `yaml:"allow_privileged_ports"`
+	AllowPrivilegedPorts bool `yaml:"allow_privileged_ports" json:"allow_privileged_ports"`
 	// AllowedPorts, if non-empty, restricts proxy_local_api to these ports.
-	AllowedPorts []int `yaml:"allowed_ports"`
+	AllowedPorts []int `yaml:"allowed_ports" json:"allowed_ports"`
 	// AllowedCommands, if non-empty, whitelists absolute executable paths for run_process.
-	AllowedCommands []string `yaml:"allowed_commands"`
+	AllowedCommands []string `yaml:"allowed_commands" json:"allowed_commands"`
 }
 
 // Logging configures the logger.
@@ -77,6 +81,7 @@ func Load(path string) (*AgentConfig, error) {
 	if err := validate(&cfg); err != nil {
 		return nil, fmt.Errorf("agent config: %w", err)
 	}
+	cfg.ConfigPath = path
 	return &cfg, nil
 }
 

@@ -945,6 +945,26 @@ func builtinSpecFor(action string) (*builtinSpec, *Error) {
 				}, nil
 			},
 		}, nil
+	case "config.get":
+		return &builtinSpec{
+			RiskLevel: riskReadonly,
+			Marshal: func(_ map[string]any) (string, string, error) {
+				return "get_agent_config", "{}", nil
+			},
+			Transform: func(data any) (any, *InvocationError) { return data, nil },
+		}, nil
+	case "config.set":
+		return &builtinSpec{
+			RiskLevel: riskMutating,
+			Marshal: func(params map[string]any) (string, string, error) {
+				raw, err := json.Marshal(params)
+				if err != nil {
+					return "", "", fmt.Errorf("marshal config.set: %w", err)
+				}
+				return "set_agent_config", string(raw), nil
+			},
+			Transform: func(data any) (any, *InvocationError) { return data, nil },
+		}, nil
 	default:
 		return nil, &Error{Status: http.StatusBadRequest, Code: "INVALID_ARGUMENT", Message: fmt.Sprintf("unsupported action %q", action)}
 	}
