@@ -73,7 +73,7 @@ type SystemInfo struct {
 // GetHardwareInfo collects hardware and OS information concurrently.
 func GetHardwareInfo(ctx context.Context, _ string) (string, error) {
 	var (
-		cpuInfo   HardwareInfo
+		cpuResult CPUInfo
 		memInfo   MemInfo
 		diskInfos []DiskInfo
 		netInfos  []NetInfo
@@ -87,15 +87,15 @@ func GetHardwareInfo(ctx context.Context, _ string) (string, error) {
 		if err != nil || len(infos) == 0 {
 			return nil
 		}
-		cpuInfo.CPU.ModelName = infos[0].ModelName
+		cpuResult.ModelName = infos[0].ModelName
 		physCores, _ := cpu.CountsWithContext(gctx, false)
 		logCores, _ := cpu.CountsWithContext(gctx, true)
-		cpuInfo.CPU.PhysicalCores = physCores
-		cpuInfo.CPU.LogicalCores = logCores
+		cpuResult.PhysicalCores = physCores
+		cpuResult.LogicalCores = logCores
 
 		usage, err := cpu.PercentWithContext(gctx, 200*time.Millisecond, true)
 		if err == nil {
-			cpuInfo.CPU.UsagePercent = usage
+			cpuResult.UsagePercent = usage
 		}
 		return nil
 	})
@@ -187,7 +187,7 @@ func GetHardwareInfo(ctx context.Context, _ string) (string, error) {
 	}
 
 	hw := HardwareInfo{
-		CPU:     cpuInfo.CPU,
+		CPU:     cpuResult,
 		Memory:  memInfo,
 		Disks:   diskInfos,
 		Network: netInfos,
