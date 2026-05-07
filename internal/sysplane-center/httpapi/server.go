@@ -122,6 +122,11 @@ func (s *Server) requireHTTP(next http.Handler, allowed ...tokenauth.Domain) htt
 
 func (s *Server) handleListNodes(w http.ResponseWriter, r *http.Request) {
 	selector := r.URL.Query().Get("label_selector")
+	if selector != "" {
+		s.writeError(w, r, http.StatusBadRequest, "UNIMPLEMENTED",
+			"label_selector is not yet implemented", map[string]any{"field": "label_selector"})
+		return
+	}
 	limit, ok := parsePositiveIntQuery(r, "limit", 50, 200)
 	if !ok {
 		s.writeError(w, r, http.StatusBadRequest, "INVALID_ARGUMENT", "limit must be a positive integer", map[string]any{"field": "limit"})
@@ -141,9 +146,6 @@ func (s *Server) handleListNodes(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if statusFilter != "" && string(rec.Status) != statusFilter {
-			continue
-		}
-		if selector != "" {
 			continue
 		}
 		nodes = append(nodes, buildNode(rec))
@@ -276,8 +278,7 @@ func (s *Server) handleTemplateRoutes(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, http.StatusNotFound, "COMMAND_TEMPLATE_NOT_FOUND", "command template not found", nil)
 		return
 	}
-	if strings.HasSuffix(path, ":invoke") {
-		templateID := strings.TrimSuffix(path, ":invoke")
+	if templateID, ok := strings.CutSuffix(path, ":invoke"); ok {
 		s.handleInvokeTemplate(w, r, templateID)
 		return
 	}
@@ -427,8 +428,7 @@ func requestMetaFromContext(ctx context.Context) admin.RequestMeta {
 }
 
 func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
-	var svcErr *admin.Error
-	if errors.As(err, &svcErr) {
+	if svcErr, ok := errors.AsType[*admin.Error](err); ok {
 		s.writeError(w, r, svcErr.Status, svcErr.Code, svcErr.Message, svcErr.Details)
 		return
 	}
@@ -562,10 +562,7 @@ func paginate[T any](items []T, cursor string, limit int, idFn func(T) string) l
 	if start > len(items) {
 		start = len(items)
 	}
-	end := start + limit
-	if end > len(items) {
-		end = len(items)
-	}
+	end := min(start+limit, len(items))
 	next := ""
 	if end < len(items) {
 		next = idFn(items[end-1])
