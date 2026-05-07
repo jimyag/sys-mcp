@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jimmicro/version"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -100,7 +101,7 @@ func (a *Agent) Run(ctx context.Context) error {
 				Os:           runtime.GOOS + "/" + runtime.GOARCH,
 				NodeType:     tunnel.NodeType_NODE_TYPE_AGENT,
 				Token:        a.cfg.Upstream.Token,
-				AgentVersion: "0.1.0",
+				AgentVersion: version.GitTag,
 			},
 		},
 	}
