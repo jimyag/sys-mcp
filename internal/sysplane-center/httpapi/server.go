@@ -500,6 +500,7 @@ func requestIDFromContext(ctx context.Context) string {
 
 func decodeJSONBody(r *http.Request, dst any) error {
 	defer r.Body.Close()
+	r.Body = http.MaxBytesReader(nil, r.Body, 1<<20)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
@@ -513,6 +514,7 @@ func decodeJSONMap(r *http.Request) (map[string]any, error) {
 	if r.ContentLength == 0 {
 		return map[string]any{}, nil
 	}
+	r.Body = http.MaxBytesReader(nil, r.Body, 1<<20)
 	var dst map[string]any
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
