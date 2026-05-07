@@ -44,8 +44,12 @@ type templateRef struct {
 	Name string `json:"name"`
 }
 
-type actionEnvelope struct {
-	Data map[string]any `json:"data"`
+type invocationResponse struct {
+	Invocation map[string]any `json:"invocation"`
+	Results    []struct {
+		Data  map[string]any `json:"data"`
+		Error any            `json:"error"`
+	} `json:"results"`
 }
 
 func New(stdout, stderr io.Writer) *App {
@@ -67,10 +71,8 @@ func (a *App) Run(args []string) error {
 
 Commands:
   nodes        list/get/capabilities
-  fs           list/read/stat/write
-  sys          info/hardware
-  templates    list/get/create/update/invoke
-  commands     templates 的别名
+  commands     统一执行 builtin / command template
+  templates    list/get/create/update
   invocations  list/get/results/cancel/create
   audit        list/get
 
@@ -105,11 +107,9 @@ Environment:
 	switch rest[0] {
 	case "nodes":
 		return a.runNodes(rest[1:])
-	case "fs":
-		return a.runFS(rest[1:])
-	case "sys":
-		return a.runSys(rest[1:])
-	case "templates", "commands":
+	case "commands":
+		return a.runCommands(rest[1:])
+	case "templates":
 		return a.runTemplates(rest[1:])
 	case "invocations":
 		return a.runInvocations(rest[1:])
@@ -179,89 +179,53 @@ func (a *App) runNodes(args []string) error {
 	}
 }
 
-func (a *App) runFS(args []string) error {
+func (a *App) runCommands(args []string) error {
 	if len(args) == 0 {
-		return errors.New("fs requires a subcommand")
+		return errors.New("commands requires a subcommand")
 	}
 	switch args[0] {
-	case "list":
-		fs := newFlagSet("sysplane fs list", a.stderr)
-		nodeID := fs.String("node", "", "target node ID")
-		path := fs.String("path", "", "target directory path")
-		showHidden := fs.Bool("show-hidden", false, "include hidden files")
-		limit := fs.Int("limit", 0, "maximum entries")
-		if stop, err := parseFlagSet(fs, args[1:]); err != nil || stop {
+	case "invoke":
+		if len(args) < 2 {
+			return errors.New("usage: sysplane commands invoke <action-or-template> --node <node-id> [--params '{}']")
+		}
+		fs := newFlagSet("sysplane commands invoke", a.stderr)
+		actionType := fs.String("action-type", "auto", "auto, builtin, or command_template")
+		node := fs.String("node", "", "single node ID")
+		nodes := fs.String("nodes", "", "comma-separated node IDs")
+		params := fs.String("params", "{}", "params JSON object")
+		paramsFile := fs.String("params-file", "", "params JSON file")
+		timeoutSec := fs.Int("timeout", 0, "override timeout in seconds")
+		async := fs.Bool("async", false, "run asynchronously")
+		if stop, err := parseFlagSet(fs, args[2:]); err != nil || stop {
 			return err
 		}
-		payload := map[string]any{"path": *path, "show_hidden": *showHidden}
-		if *limit > 0 {
-			payload["limit"] = *limit
-		}
-		return a.runNodeAction(*nodeID, "fs:list", payload, false)
-	case "read":
-		fs := newFlagSet("sysplane fs read", a.stderr)
-		nodeID := fs.String("node", "", "target node ID")
-		path := fs.String("path", "", "target file path")
-		offset := fs.Int64("offset", 0, "read offset")
-		length := fs.Int64("length", 0, "read length")
-		jsonOut := fs.Bool("json", false, "print JSON envelope instead of content only")
-		if stop, err := parseFlagSet(fs, args[1:]); err != nil || stop {
-			return err
-		}
-		payload := map[string]any{"path": *path}
-		if *offset > 0 {
-			payload["offset"] = *offset
-		}
-		if *length > 0 {
-			payload["length"] = *length
-		}
-		return a.runNodeAction(*nodeID, "fs:read", payload, !*jsonOut)
-	case "stat":
-		fs := newFlagSet("sysplane fs stat", a.stderr)
-		nodeID := fs.String("node", "", "target node ID")
-		path := fs.String("path", "", "target path")
-		if stop, err := parseFlagSet(fs, args[1:]); err != nil || stop {
-			return err
-		}
-		return a.runNodeAction(*nodeID, "fs:stat", map[string]any{"path": *path}, false)
-	case "write":
-		fs := newFlagSet("sysplane fs write", a.stderr)
-		nodeID := fs.String("node", "", "target node ID")
-		path := fs.String("path", "", "target file path")
-		content := fs.String("content", "", "inline file content")
-		contentFile := fs.String("content-file", "", "read file content from local path")
-		overwrite := fs.Bool("overwrite", false, "overwrite existing file")
-		if stop, err := parseFlagSet(fs, args[1:]); err != nil || stop {
-			return err
-		}
-		body, err := resolveContent(*content, *contentFile)
+
+		body, err := resolveJSONObject(*params, *paramsFile)
 		if err != nil {
 			return err
 		}
-		return a.runNodeAction(*nodeID, "fs:write", map[string]any{
-			"path":      *path,
-			"content":   body,
-			"overwrite": *overwrite,
-		}, false)
-	default:
-		return fmt.Errorf("unknown fs subcommand %q", args[0])
-	}
-}
 
-func (a *App) runSys(args []string) error {
-	if len(args) == 0 {
-		return errors.New("sys requires a subcommand")
-	}
-	switch args[0] {
-	case "info", "hardware":
-		fs := newFlagSet("sysplane sys "+args[0], a.stderr)
-		nodeID := fs.String("node", "", "target node ID")
-		if stop, err := parseFlagSet(fs, args[1:]); err != nil || stop {
+		resolvedAction, resolvedType, err := a.resolveCommandAction(args[1], *actionType)
+		if err != nil {
 			return err
 		}
-		return a.runNodeAction(*nodeID, "sys:"+args[0], map[string]any{}, false)
+		payload := map[string]any{
+			"action":      resolvedAction,
+			"action_type": resolvedType,
+			"targets":     map[string]any{"node_ids": targetNodeList(*node, *nodes)},
+			"params":      body,
+			"async":       *async,
+		}
+		if *timeoutSec > 0 {
+			payload["timeout_sec"] = *timeoutSec
+		}
+		var out invocationResponse
+		if err := a.request(context.Background(), http.MethodPost, "/v1/invocations", nil, payload, &out); err != nil {
+			return err
+		}
+		return a.printJSON(out)
 	default:
-		return fmt.Errorf("unknown sys subcommand %q", args[0])
+		return fmt.Errorf("unknown commands subcommand %q", args[0])
 	}
 }
 
@@ -350,41 +314,6 @@ func (a *App) runTemplates(args []string) error {
 		}
 		var out any
 		if err := a.request(context.Background(), http.MethodPatch, "/v1/command-templates/"+url.PathEscape(id), nil, body, &out); err != nil {
-			return err
-		}
-		return a.printJSON(out)
-	case "invoke":
-		if len(args) < 2 {
-			return errors.New("usage: sysplane templates invoke <template-id-or-name> --nodes n1,n2 [--params '{}']")
-		}
-		id, err := a.resolveTemplateRef(args[1])
-		if err != nil {
-			return err
-		}
-		fs := newFlagSet("sysplane templates invoke", a.stderr)
-		node := fs.String("node", "", "single node ID")
-		nodes := fs.String("nodes", "", "comma-separated node IDs")
-		params := fs.String("params", "{}", "params JSON object")
-		paramsFile := fs.String("params-file", "", "params JSON file")
-		timeoutSec := fs.Int("timeout", 0, "override timeout in seconds")
-		async := fs.Bool("async", false, "run asynchronously")
-		if stop, err := parseFlagSet(fs, args[2:]); err != nil || stop {
-			return err
-		}
-		body, err := resolveJSONObject(*params, *paramsFile)
-		if err != nil {
-			return err
-		}
-		payload := map[string]any{
-			"targets": map[string]any{"node_ids": targetNodeList(*node, *nodes)},
-			"params":  body,
-			"async":   *async,
-		}
-		if *timeoutSec > 0 {
-			payload["timeout_sec"] = *timeoutSec
-		}
-		var out any
-		if err := a.request(context.Background(), http.MethodPost, "/v1/command-templates/"+url.PathEscape(id)+":invoke", nil, payload, &out); err != nil {
 			return err
 		}
 		return a.printJSON(out)
@@ -549,23 +478,6 @@ func (a *App) runAudit(args []string) error {
 	}
 }
 
-func (a *App) runNodeAction(nodeID, action string, payload map[string]any, contentOnly bool) error {
-	if strings.TrimSpace(nodeID) == "" {
-		return errors.New("node is required")
-	}
-	var out actionEnvelope
-	if err := a.request(context.Background(), http.MethodPost, "/v1/nodes/"+url.PathEscape(nodeID)+"/actions/"+url.PathEscape(action), nil, payload, &out); err != nil {
-		return err
-	}
-	if contentOnly {
-		if content, ok := out.Data["content"].(string); ok {
-			_, err := fmt.Fprintln(a.stdout, content)
-			return err
-		}
-	}
-	return a.printJSON(out.Data)
-}
-
 func (a *App) request(ctx context.Context, method, path string, query url.Values, body any, out any) error {
 	fullURL := a.baseURL + path
 	if len(query) > 0 {
@@ -626,6 +538,34 @@ func (a *App) resolveTemplateRef(ref string) (string, error) {
 	return ref, nil
 }
 
+func (a *App) resolveCommandAction(ref, requestedType string) (string, string, error) {
+	normalized := normalizeActionName(ref)
+	switch requestedType {
+	case "", "auto":
+		if isBuiltinAction(normalized) {
+			return normalized, "builtin", nil
+		}
+		id, err := a.resolveTemplateRef(ref)
+		if err != nil {
+			return "", "", err
+		}
+		return id, "command_template", nil
+	case "builtin":
+		if !isBuiltinAction(normalized) {
+			return "", "", fmt.Errorf("unsupported builtin action %q", ref)
+		}
+		return normalized, "builtin", nil
+	case "command_template":
+		id, err := a.resolveTemplateRef(ref)
+		if err != nil {
+			return "", "", err
+		}
+		return id, "command_template", nil
+	default:
+		return "", "", fmt.Errorf("action-type must be auto, builtin, or command_template")
+	}
+}
+
 func (a *App) printJSON(v any) error {
 	enc := json.NewEncoder(a.stdout)
 	enc.SetIndent("", "  ")
@@ -657,6 +597,19 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func normalizeActionName(raw string) string {
+	return strings.ReplaceAll(strings.TrimSpace(raw), ":", ".")
+}
+
+func isBuiltinAction(action string) bool {
+	switch normalizeActionName(action) {
+	case "fs.list", "fs.read", "fs.stat", "fs.write", "sys.info", "sys.hardware":
+		return true
+	default:
+		return false
+	}
+}
+
 func splitCSV(raw string) []string {
 	parts := strings.Split(raw, ",")
 	out := make([]string, 0, len(parts))
@@ -675,20 +628,6 @@ func targetNodeList(single, multi string) []string {
 		out = append([]string{strings.TrimSpace(single)}, out...)
 	}
 	return out
-}
-
-func resolveContent(content, file string) (string, error) {
-	if content != "" && file != "" {
-		return "", errors.New("use either --content or --content-file")
-	}
-	if file == "" {
-		return content, nil
-	}
-	raw, err := os.ReadFile(filepath.Clean(file))
-	if err != nil {
-		return "", err
-	}
-	return string(raw), nil
 }
 
 func resolveJSONBody(data, file string) (any, error) {

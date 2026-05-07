@@ -154,8 +154,8 @@ WebUI 当前支持：
 ```bash
 bin/sysplane --server http://127.0.0.1:18880 --token your-client-token nodes list
 bin/sysplane --server http://127.0.0.1:18880 --token your-client-token nodes get <node-id>
-bin/sysplane --server http://127.0.0.1:18880 --token your-client-token fs read --node <node-id> --path /etc/hostname
-bin/sysplane --server http://127.0.0.1:18880 --token your-admin-token commands invoke echo.hello --nodes <node-id>
+bin/sysplane --server http://127.0.0.1:18880 --token your-client-token commands invoke fs.read --node <node-id> --params '{"path":"/etc/hostname"}'
+bin/sysplane --server http://127.0.0.1:18880 --token your-admin-token commands invoke echo.hello --nodes <node-id> --params '{}'
 bin/sysplane --server http://127.0.0.1:18880 --token your-admin-token audit list
 ```
 
@@ -170,10 +170,8 @@ bin/sysplane nodes list
 当前 CLI 覆盖：
 
 - `nodes list|get|capabilities`
-- `fs list|read|stat|write`
-- `sys info|hardware`
-- `templates list|get|create|update|invoke`
-- `commands ...`（`templates` 别名）
+- `commands invoke ...`（统一执行 builtin / command template）
+- `templates list|get|create|update`
 - `invocations list|get|results|cancel|create`
 - `audit list|get`
 

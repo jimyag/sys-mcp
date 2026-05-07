@@ -45,13 +45,12 @@ func TestRunNodesList(t *testing.T) {
 	}
 }
 
-func TestRunFSReadPrintsContent(t *testing.T) {
+func TestRunCommandsInvokeBuiltinFSReadReturnsInvocationJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"data": map[string]any{
-				"content":   "hello",
-				"encoding":  "utf-8",
-				"truncated": false,
+			"invocation": map[string]any{"id": "inv-read"},
+			"results": []map[string]any{
+				{"data": map[string]any{"content": "hello"}},
 			},
 		})
 	}))
@@ -65,16 +64,17 @@ func TestRunFSReadPrintsContent(t *testing.T) {
 		getenv: func(string) string { return "" },
 		now:    fixedNow,
 	}
-	if err := app.Run([]string{"--server", srv.URL, "--token", "tok", "fs", "read", "--node", "node-1", "--path", "/etc/hosts"}); err != nil {
+	if err := app.Run([]string{"--server", srv.URL, "--token", "tok", "commands", "invoke", "fs.read", "--node", "node-1", "--params", "{\"path\":\"/etc/hosts\"}"}); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if stdout.String() != "hello\n" {
+	if !strings.Contains(stdout.String(), "\"inv-read\"") || !strings.Contains(stdout.String(), "\"hello\"") {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
 
 func TestRunTemplateInvokeByName(t *testing.T) {
 	var requested []string
+	var invoked map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requested = append(requested, r.Method+" "+r.URL.RequestURI())
 		switch {
@@ -82,9 +82,11 @@ func TestRunTemplateInvokeByName(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"items": []map[string]any{{"id": "tpl-123", "name": "echo.hello"}},
 			})
-		case r.Method == http.MethodPost && r.URL.Path == "/v1/command-templates/tpl-123:invoke":
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/invocations":
+			_ = json.NewDecoder(r.Body).Decode(&invoked)
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"invocation": map[string]any{"id": "inv-1"},
+				"results":    []map[string]any{},
 			})
 		default:
 			http.NotFound(w, r)
@@ -106,8 +108,11 @@ func TestRunTemplateInvokeByName(t *testing.T) {
 	if len(requested) != 2 {
 		t.Fatalf("requests = %#v", requested)
 	}
-	if requested[1] != "POST /v1/command-templates/tpl-123:invoke" {
+	if requested[1] != "POST /v1/invocations" {
 		t.Fatalf("second request = %q", requested[1])
+	}
+	if invoked["action"] != "tpl-123" || invoked["action_type"] != "command_template" {
+		t.Fatalf("invocation payload = %#v", invoked)
 	}
 	if !strings.Contains(stdout.String(), "\"inv-1\"") {
 		t.Fatalf("stdout = %s", stdout.String())
