@@ -741,6 +741,84 @@ func (s *Service) executeTemplate(ctx context.Context, requestID, nodeID string,
 	return obj, nil
 }
 
+// ExecResult is the raw output of a synchronous single-node template execution.
+type ExecResult struct {
+	Stdout   string `json:"stdout"`
+	Stderr   string `json:"stderr"`
+	ExitCode int    `json:"exit_code"`
+}
+
+// ExecTemplate executes a command template on a single node synchronously and
+// returns the raw process output without wrapping it in an invocation record.
+// timeoutSec=0 means use the template's default_timeout_sec.
+func (s *Service) ExecTemplate(ctx context.Context, meta RequestMeta, nodeID, templateRef string, params map[string]any, timeoutSec int) (*ExecResult, *Error) {
+	meta = normalizeMeta(meta)
+
+	tpl, svcErr := s.resolveTemplate(templateRef)
+	if svcErr != nil {
+		return nil, svcErr.(*Error)
+	}
+	if !tpl.Enabled {
+		return nil, &Error{Status: http.StatusUnprocessableEntity, Code: "COMMAND_TEMPLATE_DISABLED", Message: "command template is disabled"}
+	}
+	if err := allowRisk(meta.Identity.Domain, tpl.RiskLevel); err != nil {
+		return nil, err.(*Error)
+	}
+	if err := validateParams(tpl.ParamsSchema, params); err != nil {
+		return nil, err.(*Error)
+	}
+	if !matchesTargetOS(tpl.TargetOS, nodeOS(s.reg.Lookup(nodeID))) {
+		return nil, &Error{Status: http.StatusUnprocessableEntity, Code: "CAPABILITY_DISABLED", Message: "template is not enabled for target node platform"}
+	}
+
+	command, args, renderErr := renderTemplateCommand(tpl, params)
+	if renderErr != nil {
+		return nil, &Error{Status: http.StatusUnprocessableEntity, Code: "INVALID_ARGUMENT", Message: renderErr.Error()}
+	}
+
+	timeout := normalizeTimeout(timeoutSec, tpl.DefaultTimeoutSec, tpl.MaxTimeoutSec)
+	payload := map[string]any{
+		"command":          command,
+		"args":             args,
+		"timeout_sec":      timeout,
+		"max_output_bytes": tpl.MaxOutputBytes,
+	}
+	raw, _ := json.Marshal(payload)
+
+	data, invokeErr := s.invokeToolWithRequest(ctx, meta.RequestID, nodeID, "run_process", string(raw))
+	if invokeErr != nil {
+		inv := classifyInvokeError(nodeID, invokeErr)
+		return nil, &Error{Status: execErrHTTPStatus(inv.Code), Code: inv.Code, Message: inv.Message, Details: inv.Details}
+	}
+
+	obj, ok := data.(map[string]any)
+	if !ok {
+		return &ExecResult{Stdout: fmt.Sprintf("%v", data)}, nil
+	}
+	return &ExecResult{
+		Stdout:   asString(obj["stdout"]),
+		Stderr:   asString(obj["stderr"]),
+		ExitCode: asInt(obj["exit_code"]),
+	}, nil
+}
+
+func execErrHTTPStatus(code string) int {
+	switch code {
+	case "NODE_NOT_FOUND":
+		return http.StatusNotFound
+	case "NODE_OFFLINE":
+		return http.StatusServiceUnavailable
+	case "TIMEOUT":
+		return http.StatusGatewayTimeout
+	case "CANCELED":
+		return http.StatusConflict
+	case "POLICY_DENIED", "FORBIDDEN":
+		return http.StatusForbidden
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
 func (s *Service) invokeToolWithRequest(ctx context.Context, requestID, nodeID, toolName, argsJSON string) (any, error) {
 	rec := s.reg.Lookup(nodeID)
 	if rec == nil {

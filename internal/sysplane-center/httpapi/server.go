@@ -178,6 +178,9 @@ func (s *Server) handleNodeRoutes(w http.ResponseWriter, r *http.Request) {
 		s.handleGetNodeConfig(w, r, nodeID)
 	case len(parts) == 2 && parts[1] == "config" && r.Method == http.MethodPatch:
 		s.handlePatchNodeConfig(w, r, nodeID)
+	case len(parts) == 4 && parts[1] == "command-templates" && parts[3] == "invoke" && r.Method == http.MethodPost:
+		templateID, _ := url.PathUnescape(parts[2])
+		s.handleExecTemplate(w, r, nodeID, templateID)
 	case len(parts) == 3 && parts[1] == "actions" && r.Method == http.MethodPost:
 		s.handleAction(w, r, nodeID, parts[2])
 	default:
@@ -219,6 +222,50 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, node
 		})
 	}
 	s.writeJSON(w, http.StatusOK, listResponse[capabilityResponse]{Items: items, NextCursor: ""})
+}
+
+func (s *Server) handleExecTemplate(w http.ResponseWriter, r *http.Request, nodeID, templateID string) {
+	var body struct {
+		Params     map[string]any `json:"params"`
+		TimeoutSec int            `json:"timeout_sec"`
+	}
+	// body is optional — empty body means no params
+	if r.ContentLength > 0 {
+		if err := decodeJSONBody(r, &body); err != nil {
+			s.writeError(w, r, http.StatusBadRequest, "INVALID_ARGUMENT", err.Error(), nil)
+			return
+		}
+	}
+	if body.Params == nil {
+		body.Params = map[string]any{}
+	}
+	meta := requestMetaFromContext(r.Context())
+	result, svcErr := s.admin.ExecTemplate(r.Context(), meta, nodeID, templateID, body.Params, body.TimeoutSec)
+	if svcErr != nil {
+		s.writeServiceError(w, r, svcErr)
+		return
+	}
+	if result.ExitCode != 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Exit-Code", strconv.Itoa(result.ExitCode))
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"exit_code": result.ExitCode,
+			"stdout":    result.Stdout,
+			"stderr":    result.Stderr,
+		})
+		return
+	}
+	stdout := result.Stdout
+	ct := "text/plain; charset=utf-8"
+	trimmed := strings.TrimSpace(stdout)
+	if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') && json.Valid([]byte(trimmed)) {
+		ct = "application/json"
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("X-Exit-Code", "0")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(stdout))
 }
 
 func (s *Server) handleGetNodeConfig(w http.ResponseWriter, r *http.Request, nodeID string) {
