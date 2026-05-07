@@ -26,6 +26,25 @@ var (
 	errNodeOffline  = errors.New("node offline")
 )
 
+const (
+	// risk levels
+	riskReadonly  = "readonly"
+	riskMutating  = "mutating"
+	riskDangerous = "dangerous"
+
+	// action types
+	actionTypeBuiltin         = "builtin"
+	actionTypeCommandTemplate = "command_template"
+
+	// invocation/audit statuses
+	statusPending   = "pending"
+	statusRunning   = "running"
+	statusSucceeded = "succeeded"
+	statusFailed    = "failed"
+	statusCanceled  = "canceled"
+	statusPartial   = "partial"
+)
+
 type RemoteForwarder interface {
 	ForwardIfNeeded(ctx context.Context, requestID, targetHost, toolName, argsJSON string) (string, bool, error)
 }
@@ -200,6 +219,11 @@ type InvocationResponse struct {
 	Results    []InvocationResult `json:"results,omitempty"`
 }
 
+// Service manages invocations, templates, and audit events entirely in memory.
+// All state is lost on center restart; there is no persistence for these maps.
+// tool_call_logs are persisted to PostgreSQL via the CallLogger, but templates,
+// invocations, results, and audit events are not. Extend the store schema to
+// persist these if durability across restarts is required.
 type Service struct {
 	reg        *registry.Registry
 	rtr        *router.Router
@@ -236,7 +260,7 @@ func NewService(reg *registry.Registry, rtr *router.Router, fwd RemoteForwarder,
 func (s *Service) DirectInvokeBuiltin(ctx context.Context, meta RequestMeta, nodeID, action string, params map[string]any) (*Invocation, *InvocationResult, error) {
 	resp, err := s.CreateInvocation(ctx, meta, CreateInvocationRequest{
 		Action:     normalizeAction(action),
-		ActionType: "builtin",
+		ActionType: actionTypeBuiltin,
 		Targets:    Targets{NodeIDs: []string{nodeID}},
 		Params:     params,
 		Async:      false,
@@ -263,7 +287,7 @@ func (s *Service) CreateInvocation(ctx context.Context, meta RequestMeta, req Cr
 		ID:         stream.NewRequestID("inv"),
 		Action:     plan.Action,
 		ActionType: plan.ActionType,
-		Status:     "pending",
+		Status:     statusPending,
 		Async:      req.Async,
 		Targets:    Targets{NodeIDs: append([]string(nil), plan.Targets...)},
 		Params:     cloneAny(plan.Params),
@@ -294,7 +318,7 @@ func (s *Service) CreateInvocation(ctx context.Context, meta RequestMeta, req Cr
 }
 
 func (s *Service) InvokeTemplate(ctx context.Context, meta RequestMeta, templateID string, body CreateInvocationRequest) (*InvocationResponse, error) {
-	body.ActionType = "command_template"
+	body.ActionType = actionTypeCommandTemplate
 	body.Action = templateID
 	return s.CreateInvocation(ctx, meta, body)
 }
@@ -350,7 +374,7 @@ func (s *Service) CancelInvocation(id string) (*Invocation, error) {
 	if !ok {
 		return nil, &Error{Status: http.StatusNotFound, Code: "INVOCATION_NOT_FOUND", Message: "invocation not found"}
 	}
-	if inv.Status == "succeeded" || inv.Status == "failed" || inv.Status == "partial" || inv.Status == "canceled" {
+	if inv.Status == statusSucceeded || inv.Status == statusFailed || inv.Status == statusPartial || inv.Status == statusCanceled {
 		return cloneInvocation(inv), nil
 	}
 	if cancel, ok := s.cancelFns.Load(id); ok {
@@ -407,7 +431,7 @@ func (s *Service) CreateTemplate(meta RequestMeta, req CreateTemplateRequest) (*
 		TokenType:     string(meta.Identity.Domain),
 		Source:        meta.Source,
 		Action:        tpl.Name,
-		ActionType:    "command_template",
+		ActionType:    actionTypeCommandTemplate,
 		TargetNodeIDs: nil,
 		RiskLevel:     tpl.RiskLevel,
 		Decision:      "created",
@@ -481,7 +505,7 @@ func (s *Service) UpdateTemplate(meta RequestMeta, id string, patch UpdateTempla
 		TokenType:  string(meta.Identity.Domain),
 		Source:     meta.Source,
 		Action:     tpl.Name,
-		ActionType: "command_template",
+		ActionType: actionTypeCommandTemplate,
 		RiskLevel:  tpl.RiskLevel,
 		Decision:   "updated",
 		CreatedAt:  time.Now().UTC(),
@@ -538,7 +562,7 @@ func (s *Service) preparePlan(meta RequestMeta, req CreateInvocationRequest) (*e
 	if action == "" {
 		return nil, &Error{Status: http.StatusBadRequest, Code: "INVALID_ARGUMENT", Message: "action is required"}
 	}
-	if actionType != "builtin" && actionType != "command_template" {
+	if actionType != actionTypeBuiltin && actionType != actionTypeCommandTemplate {
 		return nil, &Error{Status: http.StatusBadRequest, Code: "INVALID_ARGUMENT", Message: "action_type must be builtin or command_template"}
 	}
 	if len(req.Targets.NodeIDs) == 0 {
@@ -556,7 +580,7 @@ func (s *Service) preparePlan(meta RequestMeta, req CreateInvocationRequest) (*e
 		Targets:    dedupe(req.Targets.NodeIDs),
 		Params:     params,
 	}
-	if actionType == "builtin" {
+	if actionType == actionTypeBuiltin {
 		spec, err := builtinSpecFor(action)
 		if err != nil {
 			return nil, err
@@ -593,7 +617,7 @@ func (s *Service) executeInvocation(ctx context.Context, _ RequestMeta, invocati
 	started := time.Now().UTC()
 	s.mu.Lock()
 	if inv, ok := s.invocations[invocationID]; ok {
-		inv.Status = "running"
+		inv.Status = statusRunning
 		inv.StartedAt = &started
 	}
 	s.mu.Unlock()
@@ -639,13 +663,13 @@ func (s *Service) executeTarget(ctx context.Context, requestID, nodeID string, p
 	result := InvocationResult{
 		NodeID:    nodeID,
 		Hostname:  nodeID,
-		Status:    "failed",
+		Status:    statusFailed,
 		StartedAt: started,
 	}
 
 	var data any
 	var err *InvocationError
-	if plan.ActionType == "builtin" {
+	if plan.ActionType == actionTypeBuiltin {
 		data, err = s.executeBuiltin(ctx, requestID, nodeID, plan)
 	} else {
 		data, err = s.executeTemplate(ctx, requestID, nodeID, plan)
@@ -658,7 +682,7 @@ func (s *Service) executeTarget(ctx context.Context, requestID, nodeID string, p
 		result.Error = err
 		return result
 	}
-	result.Status = "succeeded"
+	result.Status = statusSucceeded
 	result.Data = data
 	return result
 }
@@ -822,7 +846,7 @@ func builtinSpecFor(action string) (*builtinSpec, *Error) {
 	switch normalizeAction(action) {
 	case "fs.list":
 		return &builtinSpec{
-			RiskLevel: "readonly",
+			RiskLevel: riskReadonly,
 			Marshal: func(params map[string]any) (string, string, error) {
 				return marshalToolArgs("list_directory", map[string]any{
 					"path":        asString(params["path"]),
@@ -840,7 +864,7 @@ func builtinSpecFor(action string) (*builtinSpec, *Error) {
 		}, nil
 	case "fs.read":
 		return &builtinSpec{
-			RiskLevel: "readonly",
+			RiskLevel: riskReadonly,
 			Marshal: func(params map[string]any) (string, string, error) {
 				return marshalToolArgs("read_file", map[string]any{
 					"path":   asString(params["path"]),
@@ -862,7 +886,7 @@ func builtinSpecFor(action string) (*builtinSpec, *Error) {
 		}, nil
 	case "fs.stat":
 		return &builtinSpec{
-			RiskLevel: "readonly",
+			RiskLevel: riskReadonly,
 			Marshal: func(params map[string]any) (string, string, error) {
 				return marshalToolArgs("stat_file", map[string]any{"path": asString(params["path"])})
 			},
@@ -882,7 +906,7 @@ func builtinSpecFor(action string) (*builtinSpec, *Error) {
 		}, nil
 	case "fs.write":
 		return &builtinSpec{
-			RiskLevel: "mutating",
+			RiskLevel: riskMutating,
 			Marshal: func(params map[string]any) (string, string, error) {
 				return marshalToolArgs("write_file", map[string]any{
 					"path":      asString(params["path"]),
@@ -894,7 +918,7 @@ func builtinSpecFor(action string) (*builtinSpec, *Error) {
 		}, nil
 	case "sys.hardware":
 		return &builtinSpec{
-			RiskLevel: "readonly",
+			RiskLevel: riskReadonly,
 			Marshal: func(_ map[string]any) (string, string, error) {
 				return "get_hardware_info", "{}", nil
 			},
@@ -902,7 +926,7 @@ func builtinSpecFor(action string) (*builtinSpec, *Error) {
 		}, nil
 	case "sys.info":
 		return &builtinSpec{
-			RiskLevel: "readonly",
+			RiskLevel: riskReadonly,
 			Marshal: func(_ map[string]any) (string, string, error) {
 				return "get_hardware_info", "{}", nil
 			},
@@ -969,7 +993,7 @@ func buildTemplate(meta RequestMeta, req CreateTemplateRequest) (*CommandTemplat
 
 func validateRisk(risk string) error {
 	switch risk {
-	case "readonly", "mutating", "dangerous":
+	case riskReadonly, riskMutating, riskDangerous:
 		return nil
 	default:
 		return &Error{Status: http.StatusBadRequest, Code: "INVALID_ARGUMENT", Message: "risk_level must be readonly, mutating, or dangerous"}
@@ -980,7 +1004,7 @@ func allowRisk(domain tokenauth.Domain, risk string) error {
 	if domain == tokenauth.DomainAdmin {
 		return nil
 	}
-	if risk != "readonly" {
+	if risk != riskReadonly {
 		return &Error{Status: http.StatusForbidden, Code: "FORBIDDEN", Message: "admin token is required for high-risk actions"}
 	}
 	return nil
@@ -1114,36 +1138,36 @@ func normalizeTimeout(requested, defaultSec, maxSec int) int {
 
 func summarizeInvocationStatus(results []InvocationResult, ctxErr error) string {
 	if errors.Is(ctxErr, context.Canceled) {
-		return "canceled"
+		return statusCanceled
 	}
 	success := 0
 	canceled := 0
 	for _, result := range results {
 		switch result.Status {
-		case "succeeded":
+		case statusSucceeded:
 			success++
-		case "canceled":
+		case statusCanceled:
 			canceled++
 		}
 	}
 	switch {
 	case canceled == len(results) && len(results) > 0:
-		return "canceled"
+		return statusCanceled
 	case success == len(results) && len(results) > 0:
-		return "succeeded"
+		return statusSucceeded
 	case success == 0:
-		return "failed"
+		return statusFailed
 	default:
-		return "partial"
+		return statusPartial
 	}
 }
 
 func statusFromErrorCode(code string) string {
 	switch code {
 	case "CANCELED":
-		return "canceled"
+		return statusCanceled
 	default:
-		return "failed"
+		return statusFailed
 	}
 }
 
