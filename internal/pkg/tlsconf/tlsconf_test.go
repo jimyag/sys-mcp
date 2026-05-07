@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jimyag/sys-mcp/internal/pkg/tlsconf"
+	"github.com/jimyag/sysplane/internal/pkg/tlsconf"
 )
 
 // generateTestCert writes a self-signed cert+key pair and CA cert to dir.

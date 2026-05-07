@@ -21,7 +21,7 @@ tasks:
         go build -trimpath -ldflags "{{.LDFLAGS}}" -o {{.OUT_DIR}}/ ./cmd/...
       - |
         if [ "{{.GO_OS}}" = "$(go env GOOS)" ] && [ "{{.GO_ARCH}}" = "$(go env GOARCH)" ]; then
-          cp {{.OUT_DIR}}/sysplane-* {{.GO_BIN}}/
+          cp {{.OUT_DIR}}/* {{.GO_BIN}}/
         fi
 
   go-mod-tidy:

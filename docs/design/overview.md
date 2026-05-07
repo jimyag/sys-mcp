@@ -257,7 +257,7 @@ stream_generation  BIGINT      NOT NULL DEFAULT 0
 ```protobuf
 syntax = "proto3";
 package tunnel;
-option go_package = "github.com/jimyag/sys-mcp/api/proto/tunnel";
+option go_package = "github.com/jimyag/sysplane/api/proto/tunnel";
 
 // 双向流服务：agent/proxy 调用 Connect 建立长连接
 // proxy 和 center 均实现此接口（接口完全相同）

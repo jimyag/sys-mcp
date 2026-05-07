@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/jimyag/sys-mcp/api/tunnel"
+	"github.com/jimyag/sysplane/api/tunnel"
 )
 
 var globalCounter atomic.Uint64
@@ -188,4 +188,3 @@ func (d *Dialer) heartbeat(ctx context.Context, stream tunnel.TunnelService_Conn
 		}
 	}
 }
-

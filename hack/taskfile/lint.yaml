@@ -4,10 +4,10 @@ output: "prefixed"
 
 vars:
   LINT_CMDS:
-    - find . -name "*.go" -print0 | xargs -0 gofumpt -w
-    - find . -name "*.go" -print0 | xargs -0 gofmt -w
+    - find . -name "*.go" ! -name "*.pb.go" -print0 | xargs -0 gofumpt -w
+    - find . -name "*.go" ! -name "*.pb.go" -print0 | xargs -0 gofmt -w
     - go vet ./...
-    - staticcheck ./...
+    - staticcheck $(go list ./... | grep -v '^github.com/jimyag/sysplane/api/tunnel$')
 
 tasks:
   lint:

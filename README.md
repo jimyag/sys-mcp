@@ -2,7 +2,12 @@
 
 Sysplane 是一个用 Go 编写的分布式远程访问控制平面，让 Web/Admin、CLI 和自动化脚本能够以统一的 HTTP API 访问远程物理机。
 
-当前仓库已经提供嵌入在 `sysplane-center` 内的完整 v1 Web Admin，访问路径为 `/web/`。它直接复用 `/v1/...` API，支持节点浏览、命令模板管理、Invocation 执行中心和审计查询。
+当前仓库已经提供两类对外控制面入口：
+
+- 内嵌在 `sysplane-center` 内的完整 v1 Web Admin，访问路径为 `/web/`
+- 独立 `sysplane` CLI，直接调用同一套 `/v1/...` HTTP API
+
+两者复用同一后端契约，支持节点浏览、命令模板管理、Invocation 执行中心和审计查询。
 
 ---
 
@@ -51,8 +56,8 @@ graph TD
 ### 编译
 
 ```bash
-git clone https://github.com/jimyag/sys-mcp.git
-cd sys-mcp
+git clone https://github.com/jimyag/sysplane.git
+cd sysplane
 task build
 # 产物输出到 bin/ 目录
 ```
@@ -70,6 +75,9 @@ bin/sysplane-agent -config deploy/config/agent.yaml.example
 
 # 3. 打开 WebUI
 # http://127.0.0.1:18880/web/
+
+# 4. 使用 CLI
+bin/sysplane --server http://127.0.0.1:18880 --token your-client-token nodes list
 ```
 
 详细部署说明见 [docs/usage/getting-started.md](docs/usage/getting-started.md)。
@@ -139,6 +147,38 @@ WebUI 当前支持：
 
 ---
 
+## CLI
+
+编译后会生成独立命令行工具：
+
+```bash
+bin/sysplane --server http://127.0.0.1:18880 --token your-client-token nodes list
+bin/sysplane --server http://127.0.0.1:18880 --token your-client-token nodes get <node-id>
+bin/sysplane --server http://127.0.0.1:18880 --token your-client-token fs read --node <node-id> --path /etc/hostname
+bin/sysplane --server http://127.0.0.1:18880 --token your-admin-token commands invoke echo.hello --nodes <node-id>
+bin/sysplane --server http://127.0.0.1:18880 --token your-admin-token audit list
+```
+
+环境变量也可替代全局参数：
+
+```bash
+export SYSPLANE_SERVER=http://127.0.0.1:18880
+export SYSPLANE_TOKEN=your-client-token
+bin/sysplane nodes list
+```
+
+当前 CLI 覆盖：
+
+- `nodes list|get|capabilities`
+- `fs list|read|stat|write`
+- `sys info|hardware`
+- `templates list|get|create|update|invoke`
+- `commands ...`（`templates` 别名）
+- `invocations list|get|results|cancel|create`
+- `audit list|get`
+
+---
+
 ## 目录结构
 
 ```
@@ -147,6 +187,7 @@ api/
   tunnel/         — 生成的 Go gRPC 代码（勿手动修改）
 bin/              — 编译产物（不提交到 git）
 cmd/
+  sysplane/        — CLI 二进制入口
   sysplane-agent/  — agent 二进制入口
   sysplane-center/ — center 二进制入口
   sysplane-proxy/  — proxy 二进制入口
@@ -160,6 +201,7 @@ docs/
   usage/          — 用户使用指南
 internal/
   pkg/            — 跨服务公共库（stream 重连器、tlsconf）
+  sysplane-cli/    — CLI 内部实现
   sysplane-agent/  — agent 内部实现
   sysplane-center/ — center 内部实现
   sysplane-proxy/  — proxy 内部实现

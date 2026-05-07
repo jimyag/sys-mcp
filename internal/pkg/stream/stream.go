@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/grpc/peer"
 
-	"github.com/jimyag/sys-mcp/api/tunnel"
+	"github.com/jimyag/sysplane/api/tunnel"
 )
 
 // TunnelStream is the server-side abstraction over a gRPC bidirectional stream.

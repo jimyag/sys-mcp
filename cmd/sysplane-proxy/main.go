@@ -6,12 +6,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	_ "github.com/jimmicro/version"
 	"os"
 	"os/signal"
 	"syscall"
 
-	proxy "github.com/jimyag/sys-mcp/internal/sys-mcp-proxy"
+	_ "github.com/jimmicro/version"
+
+	proxy "github.com/jimyag/sysplane/internal/sysplane-proxy"
 )
 
 var defaultConfigPaths = []string{

@@ -10,8 +10,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/jimyag/sys-mcp/api/tunnel"
-	pkgstream "github.com/jimyag/sys-mcp/internal/pkg/stream"
+	"github.com/jimyag/sysplane/api/tunnel"
+	pkgstream "github.com/jimyag/sysplane/internal/pkg/stream"
 )
 
 // mockTunnelServer accepts one stream, sends ack, then closes.

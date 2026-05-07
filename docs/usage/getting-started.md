@@ -1,6 +1,6 @@
 # 快速上手指南
 
-本文档介绍如何安装、配置并运行 Sysplane，并通过 HTTP API 与内置 WebUI 管理远程物理机。
+本文档介绍如何安装、配置并运行 Sysplane，并通过 HTTP API、内置 WebUI 与独立 CLI 管理远程物理机。
 
 ---
 
@@ -33,10 +33,17 @@ Web / Admin / CLI
 ### 从源码编译
 
 ```bash
-git clone https://github.com/jimyag/sys-mcp.git
-cd sys-mcp
+git clone https://github.com/jimyag/sysplane.git
+cd sysplane
 task build
 ```
+
+编译完成后会在 `bin/` 下得到：
+
+- `sysplane-center`
+- `sysplane-agent`
+- `sysplane-proxy`
+- `sysplane`
 
 ---
 
@@ -164,6 +171,35 @@ http://center.example.com:18880/web/
 - 查看审计事件
 
 v1 范围内这套 Admin 后台已经完整；RBAC、OIDC、审批流和动态策略控制台不在本轮实现范围内。
+
+---
+
+## CLI
+
+`sysplane` 会直接调用 `sysplane-center` 的 `/v1/...` API。
+
+全局参数：
+
+- `--server`：center 基地址，默认读取 `SYSPLANE_SERVER` / `SYSPLANE_URL`
+- `--token`：Bearer token，默认读取 `SYSPLANE_TOKEN`
+
+常见示例：
+
+```bash
+sysplane --server http://center.example.com:18880 --token your-client-token nodes list
+sysplane --server http://center.example.com:18880 --token your-client-token nodes get <node-id>
+sysplane --server http://center.example.com:18880 --token your-client-token fs read --node <node-id> --path /etc/hostname
+sysplane --server http://center.example.com:18880 --token your-admin-token templates list
+sysplane --server http://center.example.com:18880 --token your-admin-token commands invoke echo.hello --nodes <node-id>
+sysplane --server http://center.example.com:18880 --token your-admin-token invocations list
+sysplane --server http://center.example.com:18880 --token your-admin-token audit list
+```
+
+说明：
+
+- `commands` 是 `templates` 的别名，便于和设计文档里的命令风格保持一致。
+- `templates invoke` / `commands invoke` 可以直接传模板名；CLI 会先解析到模板 ID 再调用 API。
+- `fs read` 默认直接输出内容；加 `--json` 会输出完整 JSON 结果。
 
 ---
 

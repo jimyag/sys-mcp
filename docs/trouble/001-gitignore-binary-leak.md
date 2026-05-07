@@ -70,7 +70,7 @@ git-filter-repo --path sys-mcp-agent --invert-paths --force
 执行后 `git-filter-repo` 会自动移除 `origin` remote，需要手动恢复：
 
 ```bash
-git remote add origin git@github.com:jimyag/sys-mcp.git
+git remote add origin git@github.com:jimyag/sysplane.git
 ```
 
 ### 4. 强制推送

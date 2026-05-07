@@ -11,7 +11,7 @@ import (
 
 	_ "github.com/jimmicro/version"
 
-	agent "github.com/jimyag/sys-mcp/internal/sys-mcp-agent"
+	agent "github.com/jimyag/sysplane/internal/sysplane-agent"
 )
 
 var defaultConfigPaths = []string{

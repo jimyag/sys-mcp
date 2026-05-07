@@ -25,7 +25,7 @@
 
 - [ ] Create `api/proto/tunnel.proto` with: `TunnelService.Connect(stream TunnelMessage) returns (stream TunnelMessage)`, all message types (RegisterRequest/Ack, Heartbeat/Ack, ToolRequest/Response, ErrorResponse, CancelRequest), NodeType enum
 - [ ] Install protoc plugins: `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`
-- [ ] Generate: `protoc --go_out=. --go-grpc_out=. --go_opt=Mapi/proto/tunnel.proto=github.com/jimyag/sys-mcp/api/tunnel --go-grpc_opt=Mapi/proto/tunnel.proto=github.com/jimyag/sys-mcp/api/tunnel api/proto/tunnel.proto`
+- [ ] Generate: `protoc --go_out=. --go-grpc_out=. --go_opt=Mapi/proto/tunnel.proto=github.com/jimyag/sysplane/api/tunnel --go-grpc_opt=Mapi/proto/tunnel.proto=github.com/jimyag/sysplane/api/tunnel api/proto/tunnel.proto`
 - [ ] Verify: `go build ./api/...`
 - [ ] Commit: `feat: add tunnel proto and generated gRPC code`
 

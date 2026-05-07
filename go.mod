@@ -1,4 +1,4 @@
-module github.com/jimyag/sys-mcp
+module github.com/jimyag/sysplane
 
 go 1.26.2
 

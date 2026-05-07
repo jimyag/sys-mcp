@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	_ "github.com/jimmicro/version"
 	"os"
 	"os/signal"
 	"syscall"
 
-	center "github.com/jimyag/sys-mcp/internal/sys-mcp-center"
+	_ "github.com/jimmicro/version"
+
+	center "github.com/jimyag/sysplane/internal/sysplane-center"
 )
 
 var defaultConfigPaths = []string{
