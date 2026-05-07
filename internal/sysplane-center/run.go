@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 
 	"github.com/jimyag/sysplane/api/tunnel"
 	"github.com/jimyag/sysplane/internal/pkg/logutil"
@@ -87,7 +88,18 @@ func Run(ctx context.Context, configPath string) error {
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer(grpcCreds)
+	grpcServer := grpc.NewServer(
+		grpcCreds,
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle: 60 * time.Second,
+			Time:              30 * time.Second,
+			Timeout:           10 * time.Second,
+		}),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
 	tunnel.RegisterTunnelServiceServer(grpcServer, tunnelSvc)
 
 	var callLogger admin.CallLogger
@@ -135,8 +147,12 @@ func Run(ctx context.Context, configPath string) error {
 
 	g.Go(func() error {
 		httpSrv := &http.Server{
-			Addr:    cfg.Listen.HTTPAddress,
-			Handler: httpMux,
+			Addr:              cfg.Listen.HTTPAddress,
+			Handler:           httpMux,
+			ReadHeaderTimeout: 10 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      60 * time.Second,
+			IdleTimeout:       120 * time.Second,
 		}
 		logger.Info("HTTP server listening", "address", cfg.Listen.HTTPAddress)
 		go func() {
@@ -162,8 +178,11 @@ func Run(ctx context.Context, configPath string) error {
 			metricsMux := http.NewServeMux()
 			metricsMux.Handle("/metrics", promhttp.Handler())
 			metricsSrv := &http.Server{
-				Addr:    cfg.Metrics.Address,
-				Handler: metricsMux,
+				Addr:              cfg.Metrics.Address,
+				Handler:           metricsMux,
+				ReadHeaderTimeout: 10 * time.Second,
+				ReadTimeout:       30 * time.Second,
+				WriteTimeout:      60 * time.Second,
 			}
 			logger.Info("Prometheus metrics server listening", "address", cfg.Metrics.Address)
 			go func() {
